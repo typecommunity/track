@@ -24,11 +24,10 @@
             $currentPage = $_GET['page'] ?? 'dashboard';
             $menuItems = [
                 ['icon' => '📊', 'label' => 'Resumo', 'page' => 'dashboard'],
-                ['icon' => '📱', 'label' => 'Meta', 'page' => 'meta'],
-                ['icon' => '🔍', 'label' => 'Google', 'page' => 'google'],
-                ['icon' => '🎥', 'label' => 'Kwai', 'page' => 'kwai'],
-                ['icon' => '📋', 'label' => 'UTMs', 'page' => 'utms'],
                 ['icon' => '🔗', 'label' => 'Integrações', 'page' => 'integracoes'],
+                ['icon' => '📋', 'label' => 'UTMs', 'page' => 'utms'],
+                ['icon' => '📦', 'label' => 'Produtos', 'page' => 'produtos'],
+                ['icon' => '🔔', 'label' => 'Webhooks', 'page' => 'webhooks'],
                 ['icon' => '⚙️', 'label' => 'Regras', 'page' => 'regras'],
                 ['icon' => '💰', 'label' => 'Taxas', 'page' => 'taxas'],
                 ['icon' => '💳', 'label' => 'Despesas', 'page' => 'despesas'],
@@ -36,7 +35,8 @@
             ];
             
             foreach ($menuItems as $item):
-                $isActive = $currentPage === $item['page'];
+                $isActive = $currentPage === $item['page'] || 
+                           (strpos($currentPage, $item['page']) === 0 && $item['page'] !== 'dashboard');
             ?>
             <li style="margin-bottom: 6px;">
                 <a href="index.php?page=<?= $item['page'] ?>" style="

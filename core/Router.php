@@ -70,16 +70,23 @@ class Router {
             'dashboard' => ['DashboardController', 'index'],
             'resumo' => ['DashboardController', 'index'],
             
-            // Meta
+            // Meta Ads (Legacy - manter por compatibilidade)
             'meta' => ['MetaController', 'index'],
             'meta-contas' => ['MetaController', 'accounts'],
             'meta-campanhas' => ['MetaController', 'campaigns'],
             
-            // Google
+            // Google Ads
             'google' => ['GoogleController', 'index'],
             
-            // Integrações
+            // Integrações (NOVO)
             'integracoes' => ['IntegrationController', 'index'],
+            'integracoes-meta' => ['IntegrationController', 'meta'],
+            'integracoes-meta-salvar' => ['IntegrationController', 'metaSave'],
+            'integracoes-meta-conectar' => ['IntegrationController', 'metaConnect'],
+            'integracoes-meta-contas' => ['IntegrationController', 'metaAccounts'],
+            'integracoes-meta-toggle' => ['IntegrationController', 'metaToggleAccount'],
+            'integracoes-meta-sync' => ['IntegrationController', 'metaSync'],
+            'integracoes-meta-remover' => ['IntegrationController', 'metaRemove'],
             'integracoes-webhook' => ['IntegrationController', 'webhook'],
             
             // UTMs
@@ -90,11 +97,8 @@ class Router {
             'utms-scripts' => ['UtmController', 'scripts'],
             'utms-stats' => ['UtmController', 'stats'],
             
-            // Regras
+            // Regras de Automação
             'regras' => ['RuleController', 'index'],
-            
-            // Produtos
-            'produtos' => ['ProductController', 'index'],
             
             // Produtos
             'produtos' => ['ProductController', 'index'],
@@ -114,7 +118,10 @@ class Router {
             // Relatórios
             'relatorios' => ['ReportController', 'index'],
             'report-export' => ['ReportController', 'export'],
+            
+            // Taxas e Despesas
             'taxas' => ['TaxController', 'index'],
+            'despesas' => ['ExpenseController', 'index'],
             
             // Admin
             'admin' => ['AdminController', 'dashboard'],
