@@ -70,6 +70,13 @@ class Router {
             'dashboard' => ['DashboardController', 'index'],
             'resumo' => ['DashboardController', 'index'],
             
+            // Campanhas (NOVO - Sistema Completo)
+            'campanhas' => ['CampaignController', 'index'],
+            'campanhas-meta' => ['CampaignController', 'meta'],
+            'campanha-detalhes' => ['CampaignController', 'show'],
+            'campanhas-sync' => ['CampaignController', 'sync'],
+            'campanhas-export' => ['CampaignController', 'export'],
+            
             // Meta Ads (Legacy - manter por compatibilidade)
             'meta' => ['MetaController', 'index'],
             'meta-contas' => ['MetaController', 'accounts'],
@@ -78,7 +85,7 @@ class Router {
             // Google Ads
             'google' => ['GoogleController', 'index'],
             
-            // Integrações (NOVO)
+            // Integrações
             'integracoes' => ['IntegrationController', 'index'],
             'integracoes-meta' => ['IntegrationController', 'meta'],
             'integracoes-meta-salvar' => ['IntegrationController', 'metaSave'],
