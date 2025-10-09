@@ -255,23 +255,88 @@
     box-shadow: none;
 }
 
-/* Info Card */
-.info-card {
+/* Setup Guide */
+.setup-guide {
     background: linear-gradient(135deg, rgba(102, 126, 234, 0.1), rgba(102, 126, 234, 0.05));
     border: 1px solid rgba(102, 126, 234, 0.3);
     border-radius: 20px;
-    padding: 32px;
+    padding: 40px;
     margin-top: 40px;
 }
 
-.info-card-header {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    margin-bottom: 24px;
+.guide-header {
+    text-align: center;
+    margin-bottom: 48px;
 }
 
-.info-card-icon {
+.guide-title {
+    font-size: 32px;
+    font-weight: 700;
+    color: white;
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+}
+
+.guide-title-icon {
+    font-size: 40px;
+}
+
+.guide-subtitle {
+    font-size: 16px;
+    color: #94a3b8;
+    line-height: 1.6;
+}
+
+.guide-steps {
+    display: grid;
+    gap: 24px;
+    max-width: 1000px;
+    margin: 0 auto;
+}
+
+.guide-step {
+    background: rgba(15, 23, 42, 0.6);
+    border: 1px solid rgba(102, 126, 234, 0.2);
+    border-radius: 16px;
+    padding: 28px;
+    transition: all 0.3s;
+    position: relative;
+    overflow: hidden;
+}
+
+.guide-step::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 4px;
+    background: linear-gradient(180deg, #667eea 0%, #764ba2 100%);
+    opacity: 0;
+    transition: opacity 0.3s;
+}
+
+.guide-step:hover {
+    background: rgba(15, 23, 42, 0.9);
+    border-color: rgba(102, 126, 234, 0.4);
+    transform: translateX(4px);
+}
+
+.guide-step:hover::before {
+    opacity: 1;
+}
+
+.step-header {
+    display: flex;
+    align-items: flex-start;
+    gap: 20px;
+    margin-bottom: 20px;
+}
+
+.step-number {
     width: 48px;
     height: 48px;
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -279,68 +344,166 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 24px;
-}
-
-.info-card-title {
+    font-weight: 700;
     font-size: 20px;
-    font-weight: 700;
-    color: #a5b4fc;
-    margin: 0;
-}
-
-.info-steps {
-    display: grid;
-    gap: 20px;
-}
-
-.info-step {
-    display: flex;
-    gap: 16px;
-    padding: 20px;
-    background: rgba(15, 23, 42, 0.5);
-    border: 1px solid rgba(102, 126, 234, 0.2);
-    border-radius: 12px;
-    transition: all 0.2s;
-}
-
-.info-step:hover {
-    background: rgba(15, 23, 42, 0.8);
-    border-color: rgba(102, 126, 234, 0.4);
-    transform: translateX(4px);
-}
-
-.step-number {
-    width: 32px;
-    height: 32px;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    border-radius: 8px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-weight: 700;
     color: white;
     flex-shrink: 0;
+    box-shadow: 0 8px 24px rgba(102, 126, 234, 0.3);
 }
 
-.step-content {
+.step-info {
     flex: 1;
 }
 
 .step-title {
     color: #e2e8f0;
-    font-weight: 600;
-    font-size: 15px;
-    margin-bottom: 6px;
+    font-weight: 700;
+    font-size: 18px;
+    margin-bottom: 8px;
 }
 
 .step-description {
     color: #94a3b8;
-    line-height: 1.6;
-    font-size: 14px;
+    line-height: 1.8;
+    font-size: 15px;
 }
 
-/* Responsivo */
+.step-description strong {
+    color: #a5b4fc;
+    font-weight: 600;
+}
+
+.step-description code {
+    background: rgba(102, 126, 234, 0.15);
+    border: 1px solid rgba(102, 126, 234, 0.3);
+    padding: 2px 8px;
+    border-radius: 6px;
+    font-family: 'Courier New', monospace;
+    font-size: 13px;
+    color: #c7d2fe;
+}
+
+.step-details {
+    margin-top: 16px;
+    padding: 20px;
+    background: rgba(15, 23, 42, 0.8);
+    border: 1px solid #334155;
+    border-radius: 12px;
+}
+
+.step-details-title {
+    color: #cbd5e1;
+    font-weight: 600;
+    font-size: 14px;
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.step-details-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.step-details-list li {
+    color: #94a3b8;
+    font-size: 14px;
+    line-height: 1.8;
+    padding: 8px 0;
+    padding-left: 28px;
+    position: relative;
+}
+
+.step-details-list li::before {
+    content: '→';
+    position: absolute;
+    left: 8px;
+    color: #667eea;
+    font-weight: 700;
+}
+
+.alert-box {
+    margin-top: 20px;
+    padding: 20px;
+    background: rgba(245, 158, 11, 0.1);
+    border: 1px solid rgba(245, 158, 11, 0.3);
+    border-radius: 12px;
+    display: flex;
+    gap: 16px;
+    align-items: flex-start;
+}
+
+.alert-icon {
+    font-size: 24px;
+    flex-shrink: 0;
+}
+
+.alert-content {
+    flex: 1;
+}
+
+.alert-title {
+    color: #fbbf24;
+    font-weight: 600;
+    font-size: 15px;
+    margin-bottom: 8px;
+}
+
+.alert-text {
+    color: #cbd5e1;
+    font-size: 14px;
+    line-height: 1.6;
+}
+
+/* Video Tutorial Section */
+.video-section {
+    margin-top: 40px;
+    background: linear-gradient(135deg, rgba(139, 92, 246, 0.1), rgba(139, 92, 246, 0.05));
+    border: 1px solid rgba(139, 92, 246, 0.3);
+    border-radius: 20px;
+    padding: 40px;
+    text-align: center;
+}
+
+.video-title {
+    font-size: 24px;
+    font-weight: 700;
+    color: white;
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+}
+
+.video-description {
+    color: #94a3b8;
+    font-size: 15px;
+    margin-bottom: 28px;
+}
+
+.video-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    padding: 14px 32px;
+    background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+    color: white;
+    font-weight: 600;
+    border-radius: 12px;
+    text-decoration: none;
+    transition: all 0.3s;
+    box-shadow: 0 8px 24px rgba(139, 92, 246, 0.4);
+}
+
+.video-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 12px 32px rgba(139, 92, 246, 0.6);
+}
+
+/* Responsive */
 @media (max-width: 768px) {
     .integrations-grid {
         grid-template-columns: 1fr;
@@ -348,6 +511,18 @@
     
     .integration-stats {
         grid-template-columns: 1fr;
+    }
+    
+    .guide-title {
+        font-size: 24px;
+    }
+    
+    .setup-guide {
+        padding: 24px;
+    }
+    
+    .guide-step {
+        padding: 20px;
     }
 }
 </style>
@@ -529,47 +704,332 @@
     
 </div>
 
-<!-- Info Card -->
-<div class="info-card">
-    <div class="info-card-header">
-        <div class="info-card-icon">📘</div>
-        <h3 class="info-card-title">Como Funciona a Integração</h3>
+<!-- Setup Guide -->
+<div class="setup-guide">
+    <div class="guide-header">
+        <h2 class="guide-title">
+            <span class="guide-title-icon">🚀</span>
+            Guia Completo de Configuração do Meta Ads
+        </h2>
+        <p class="guide-subtitle">
+            Siga este passo a passo detalhado para criar seu app no Meta Developers e integrar com o UTMTrack
+        </p>
     </div>
     
-    <div class="info-steps">
-        <div class="info-step">
-            <div class="step-number">1</div>
-            <div class="step-content">
-                <div class="step-title">Configure suas Credenciais</div>
-                <div class="step-description">
-                    Crie seu próprio App no Meta Business (developers.facebook.com) e 
-                    configure as credenciais no UTMTrack. Cada cliente gerencia suas próprias integrações.
+    <div class="guide-steps">
+        
+        <!-- Step 1 -->
+        <div class="guide-step">
+            <div class="step-header">
+                <div class="step-number">1</div>
+                <div class="step-info">
+                    <h3 class="step-title">Acessar Meta Developers</h3>
+                    <p class="step-description">
+                        Acesse <strong>developers.facebook.com/apps</strong> e faça login com sua conta Meta (Facebook). 
+                        Você verá a página "Apps" vazia conforme o primeiro print.
+                    </p>
+                </div>
+            </div>
+            <div class="step-details">
+                <div class="step-details-title">
+                    📋 O que fazer:
+                </div>
+                <ul class="step-details-list">
+                    <li>Clique no botão verde <strong>"Create App"</strong> no canto superior direito</li>
+                    <li>Se não aparecer nenhuma opção, use o menu no topo da página</li>
+                </ul>
+            </div>
+        </div>
+        
+        <!-- Step 2 -->
+        <div class="guide-step">
+            <div class="step-header">
+                <div class="step-number">2</div>
+                <div class="step-info">
+                    <h3 class="step-title">Criar App - Detalhes Básicos</h3>
+                    <p class="step-description">
+                        Na primeira tela "App details", você precisa preencher as informações básicas do seu aplicativo.
+                    </p>
+                </div>
+            </div>
+            <div class="step-details">
+                <div class="step-details-title">
+                    ✏️ Campos obrigatórios:
+                </div>
+                <ul class="step-details-list">
+                    <li><strong>App name:</strong> Digite um nome para seu app (exemplo: "utm" ou "UTMTrack Integration")</li>
+                    <li><strong>App contact email:</strong> Digite seu email de contato profissional</li>
+                    <li>Clique em <strong>"Next"</strong> para continuar</li>
+                </ul>
+            </div>
+        </div>
+        
+        <!-- Step 3 -->
+        <div class="guide-step">
+            <div class="step-header">
+                <div class="step-number">3</div>
+                <div class="step-info">
+                    <h3 class="step-title">Selecionar Caso de Uso (Use Cases)</h3>
+                    <p class="step-description">
+                        Esta é a etapa mais importante! Na tela "Add use cases", você deve selecionar especificamente 
+                        o caso de uso relacionado a anúncios do Meta.
+                    </p>
+                </div>
+            </div>
+            <div class="step-details">
+                <div class="step-details-title">
+                    ⚡ Ação necessária:
+                </div>
+                <ul class="step-details-list">
+                    <li>Procure e marque o checkbox: <strong>"Create & manage app ads with Meta Ads Manager"</strong></li>
+                    <li>Este caso de uso permite que você promova apps e gerencie campanhas</li>
+                    <li><strong>NÃO</strong> selecione outros casos de uso por enquanto</li>
+                    <li>Clique em <strong>"Next"</strong> após selecionar</li>
+                </ul>
+            </div>
+            <div class="alert-box">
+                <span class="alert-icon">⚠️</span>
+                <div class="alert-content">
+                    <div class="alert-title">Importante!</div>
+                    <div class="alert-text">
+                        Selecionar o caso de uso correto é essencial. O "Create & manage app ads with Meta Ads Manager" 
+                        dá acesso à Marketing API que usaremos para sincronizar dados.
+                    </div>
                 </div>
             </div>
         </div>
         
-        <div class="info-step">
-            <div class="step-number">2</div>
-            <div class="step-content">
-                <div class="step-title">Conecte suas Contas de Anúncio</div>
-                <div class="step-description">
-                    Autorize o acesso às suas contas de anúncio através do OAuth seguro do Facebook. 
-                    Selecione quais contas deseja sincronizar com o sistema.
+        <!-- Step 4 -->
+        <div class="guide-step">
+            <div class="step-header">
+                <div class="step-number">4</div>
+                <div class="step-info">
+                    <h3 class="step-title">Conectar Business Portfolio</h3>
+                    <p class="step-description">
+                        Na tela "Business", você precisa conectar ou criar um Business Portfolio 
+                        (anteriormente conhecido como Business Manager).
+                    </p>
+                </div>
+            </div>
+            <div class="step-details">
+                <div class="step-details-title">
+                    🏢 Opções disponíveis:
+                </div>
+                <ul class="step-details-list">
+                    <li>Se você já tem um Business Portfolio: <strong>Selecione-o na lista</strong></li>
+                    <li>Se não tiver: Selecione <strong>"I don't want to connect a business portfolio yet"</strong></li>
+                    <li>Você pode criar um Business em <code>business.facebook.com</code> depois</li>
+                    <li>Clique em <strong>"Next"</strong> para prosseguir</li>
+                </ul>
+            </div>
+        </div>
+        
+        <!-- Step 5 -->
+        <div class="guide-step">
+            <div class="step-header">
+                <div class="step-number">5</div>
+                <div class="step-info">
+                    <h3 class="step-title">Revisar e Finalizar (Overview)</h3>
+                    <p class="step-description">
+                        Na última tela "Overview", revise todas as informações do seu app antes de criar.
+                    </p>
+                </div>
+            </div>
+            <div class="step-details">
+                <div class="step-details-title">
+                    ✅ Verifique:
+                </div>
+                <ul class="step-details-list">
+                    <li><strong>App Name:</strong> Nome que você escolheu</li>
+                    <li><strong>App Email:</strong> Seu email de contato</li>
+                    <li><strong>Use cases:</strong> "Create & manage app ads with Meta Ads Manager"</li>
+                    <li><strong>Business:</strong> Business Portfolio selecionado (ou "Unverified business")</li>
+                    <li>Aceite os termos e políticas no final da página</li>
+                    <li>Clique em <strong>"Go to dashboard"</strong></li>
+                </ul>
+            </div>
+        </div>
+        
+        <!-- Step 6 -->
+        <div class="guide-step">
+            <div class="step-header">
+                <div class="step-number">6</div>
+                <div class="step-info">
+                    <h3 class="step-title">Acessar as Credenciais do App</h3>
+                    <p class="step-description">
+                        Agora você está no Dashboard do app! Você precisa pegar o <strong>App ID</strong> e 
+                        <strong>App Secret</strong> para configurar no UTMTrack.
+                    </p>
+                </div>
+            </div>
+            <div class="step-details">
+                <div class="step-details-title">
+                    🔑 Como obter as credenciais:
+                </div>
+                <ul class="step-details-list">
+                    <li>No menu lateral esquerdo, vá em <strong>App settings → Basic</strong></li>
+                    <li>Você verá o <strong>App ID</strong> logo no topo - copie este número</li>
+                    <li>Role a página e encontre <strong>App secret</strong></li>
+                    <li>Clique em <strong>"Show"</strong> e copie o App Secret (você precisará confirmar sua senha)</li>
+                    <li>Guarde estas credenciais em um local seguro</li>
+                </ul>
+            </div>
+            <div class="alert-box">
+                <span class="alert-icon">🔒</span>
+                <div class="alert-content">
+                    <div class="alert-title">Segurança</div>
+                    <div class="alert-text">
+                        NUNCA compartilhe seu App Secret publicamente. Trate-o como uma senha - 
+                        ele dá acesso total ao seu app no Meta.
+                    </div>
                 </div>
             </div>
         </div>
         
-        <div class="info-step">
-            <div class="step-number">3</div>
-            <div class="step-content">
-                <div class="step-title">Sincronização Automática</div>
-                <div class="step-description">
-                    O sistema importará suas campanhas e métricas automaticamente a cada hora. 
-                    Você também pode sincronizar manualmente quando precisar de dados atualizados.
+        <!-- Step 7 -->
+        <div class="guide-step">
+            <div class="step-header">
+                <div class="step-number">7</div>
+                <div class="step-info">
+                    <h3 class="step-title">Adicionar Facebook Login</h3>
+                    <p class="step-description">
+                        Para autenticar usuários e acessar contas de anúncio, você precisa adicionar o produto Facebook Login.
+                    </p>
+                </div>
+            </div>
+            <div class="step-details">
+                <div class="step-details-title">
+                    🔐 Configuração do Login:
+                </div>
+                <ul class="step-details-list">
+                    <li>No Dashboard, procure por <strong>"Add products to your app"</strong></li>
+                    <li>Encontre <strong>"Facebook Login"</strong> e clique em <strong>"Set up"</strong></li>
+                    <li>Após adicionar, vá em <strong>Facebook Login → Settings</strong> no menu lateral</li>
+                    <li>Em "Valid OAuth Redirect URIs", adicione: <code>https://seudominio.com/oauth/callback</code></li>
+                    <li>Substitua <code>seudominio.com</code> pela URL real do seu UTMTrack</li>
+                    <li>Clique em <strong>"Save Changes"</strong></li>
+                </ul>
+            </div>
+        </div>
+        
+        <!-- Step 8 -->
+        <div class="guide-step">
+            <div class="step-header">
+                <div class="step-number">8</div>
+                <div class="step-info">
+                    <h3 class="step-title">Configurar Permissões da Marketing API</h3>
+                    <p class="step-description">
+                        Para acessar dados de campanhas, você precisa solicitar permissões específicas da Marketing API.
+                    </p>
+                </div>
+            </div>
+            <div class="step-details">
+                <div class="step-details-title">
+                    📝 Permissões necessárias:
+                </div>
+                <ul class="step-details-list">
+                    <li>No menu lateral, vá em <strong>Use cases</strong></li>
+                    <li>Clique em <strong>"Customize"</strong> no card "Create & manage app ads"</li>
+                    <li>Solicite as seguintes permissões (clique em "Request" em cada uma):</li>
+                    <li><strong>ads_management:</strong> Para criar e gerenciar anúncios</li>
+                    <li><strong>ads_read:</strong> Para ler dados e métricas de anúncios</li>
+                    <li><strong>business_management:</strong> Para acessar dados de negócios</li>
+                    <li>Preencha o formulário explicando como usará cada permissão</li>
+                    <li>Aguarde a aprovação (pode levar alguns dias)</li>
+                </ul>
+            </div>
+            <div class="alert-box">
+                <span class="alert-icon">⏳</span>
+                <div class="alert-content">
+                    <div class="alert-title">Modo de Desenvolvimento</div>
+                    <div class="alert-text">
+                        Enquanto as permissões não são aprovadas, seu app funcionará em "Development Mode", 
+                        onde você pode testar com contas de teste. Para produção, você precisará passar pela App Review.
+                    </div>
                 </div>
             </div>
         </div>
+        
+        <!-- Step 9 -->
+        <div class="guide-step">
+            <div class="step-header">
+                <div class="step-number">9</div>
+                <div class="step-info">
+                    <h3 class="step-title">Configurar no UTMTrack</h3>
+                    <p class="step-description">
+                        Agora que você tem as credenciais, volte ao UTMTrack e configure a integração.
+                    </p>
+                </div>
+            </div>
+            <div class="step-details">
+                <div class="step-details-title">
+                    ⚙️ Passos no UTMTrack:
+                </div>
+                <ul class="step-details-list">
+                    <li>Clique em <strong>"Começar Configuração"</strong> no card do Meta Ads acima</li>
+                    <li>Cole o <strong>App ID</strong> que você copiou</li>
+                    <li>Cole o <strong>App Secret</strong> que você copiou</li>
+                    <li>Clique em <strong>"Testar Conexão"</strong> para verificar se está funcionando</li>
+                    <li>Se tudo estiver correto, clique em <strong>"Salvar Configuração"</strong></li>
+                    <li>Depois, clique em <strong>"Conectar Contas"</strong> para autorizar o acesso</li>
+                </ul>
+            </div>
+        </div>
+        
+        <!-- Step 10 -->
+        <div class="guide-step">
+            <div class="step-header">
+                <div class="step-number">10</div>
+                <div class="step-info">
+                    <h3 class="step-title">Publicar App (Opcional - Para Produção)</h3>
+                    <p class="step-description">
+                        Se você quiser usar o app em produção com todas as contas, precisa publicá-lo e passar pela revisão do Meta.
+                    </p>
+                </div>
+            </div>
+            <div class="step-details">
+                <div class="step-details-title">
+                    🚀 Para publicar:
+                </div>
+                <ul class="step-details-list">
+                    <li>Complete todos os itens em <strong>"Required actions"</strong> no Dashboard</li>
+                    <li>Adicione uma Privacy Policy URL</li>
+                    <li>Adicione ícones e categorias do app</li>
+                    <li>Submeta para App Review em <strong>App Review → Permissions and Features</strong></li>
+                    <li>Aguarde aprovação (geralmente 1-3 dias úteis)</li>
+                    <li>Após aprovação, mude para "Live Mode" em <strong>App settings → Basic</strong></li>
+                </ul>
+            </div>
+            <div class="alert-box">
+                <span class="alert-icon">💡</span>
+                <div class="alert-content">
+                    <div class="alert-title">Dica</div>
+                    <div class="alert-text">
+                        Para testar a integração, você não precisa publicar o app imediatamente. 
+                        O "Development Mode" permite que você teste com suas próprias contas de anúncio.
+                    </div>
+                </div>
+            </div>
+        </div>
+        
     </div>
+</div>
+
+<!-- Video Tutorial -->
+<div class="video-section">
+    <h3 class="video-title">
+        <span>🎬</span>
+        Prefere Assistir um Tutorial em Vídeo?
+    </h3>
+    <p class="video-description">
+        Temos um vídeo passo a passo mostrando todo o processo de configuração do Meta Ads
+    </p>
+    <a href="#" class="video-btn">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M8 5v14l11-7z"/>
+        </svg>
+        Assistir Tutorial Completo
+    </a>
 </div>
 
 <script>
@@ -593,10 +1053,7 @@ async function syncMeta() {
         const result = await response.json();
         
         if (result.success) {
-            // Mostrar notificação de sucesso
             showNotification('success', result.message);
-            
-            // Recarregar página após 1 segundo
             setTimeout(() => window.location.reload(), 1000);
         } else {
             showNotification('error', result.message);
@@ -641,7 +1098,6 @@ function showNotification(type, message) {
     }, 3000);
 }
 
-// Adicionar animações CSS
 const style = document.createElement('style');
 style.textContent = `
     @keyframes spin {

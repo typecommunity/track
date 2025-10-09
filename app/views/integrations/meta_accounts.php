@@ -5,12 +5,86 @@
     </a>
     
     <div style="display: flex; gap: 10px;">
+        <button onclick="showDisconnectModal()" class="btn" style="background: #ef4444; color: white;">
+            🔌 Desconectar Integração
+        </button>
         <button onclick="syncAccounts()" class="btn" style="background: #10b981; color: white;">
             🔄 Sincronizar Contas
         </button>
         <a href="index.php?page=integracoes-meta" class="btn" style="background: #334155; color: white; text-decoration: none;">
             ⚙️ Configurações
         </a>
+    </div>
+</div>
+
+<!-- Modal de Desconexão -->
+<div id="disconnectModal" class="modal">
+    <div class="modal-overlay" onclick="closeDisconnectModal()"></div>
+    <div class="modal-content">
+        <div class="modal-header">
+            <div class="modal-icon">
+                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+                    <line x1="12" y1="9" x2="12" y2="13"/>
+                    <line x1="12" y1="17" x2="12.01" y2="17"/>
+                </svg>
+            </div>
+            <h2 class="modal-title">Desconectar Integração Meta Ads?</h2>
+            <p class="modal-subtitle">Esta ação não pode ser desfeita</p>
+        </div>
+        
+        <div class="modal-body">
+            <div class="warning-list">
+                <div class="warning-item">
+                    <div class="warning-icon">❌</div>
+                    <div class="warning-text">
+                        <strong>Todas as contas serão removidas</strong>
+                        <span>Você perderá acesso às contas de anúncio conectadas</span>
+                    </div>
+                </div>
+                
+                <div class="warning-item">
+                    <div class="warning-icon">🔒</div>
+                    <div class="warning-text">
+                        <strong>Access token será apagado</strong>
+                        <span>A autenticação com o Facebook será revogada</span>
+                    </div>
+                </div>
+                
+                <div class="warning-item">
+                    <div class="warning-icon">⏸️</div>
+                    <div class="warning-text">
+                        <strong>Sincronização será desativada</strong>
+                        <span>Os dados não serão mais atualizados automaticamente</span>
+                    </div>
+                </div>
+                
+                <div class="warning-item">
+                    <div class="warning-icon">🔄</div>
+                    <div class="warning-text">
+                        <strong>Será necessário reconectar do zero</strong>
+                        <span>Você precisará refazer toda a configuração OAuth</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="modal-footer">
+            <button onclick="closeDisconnectModal()" class="btn-modal btn-cancel">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="18" y1="6" x2="6" y2="18"/>
+                    <line x1="6" y1="6" x2="18" y2="18"/>
+                </svg>
+                Cancelar
+            </button>
+            <button onclick="confirmDisconnect()" class="btn-modal btn-danger">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="3 6 5 6 21 6"/>
+                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                </svg>
+                Sim, Desconectar
+            </button>
+        </div>
     </div>
 </div>
 
@@ -171,6 +245,221 @@
 </div>
 
 <style>
+/* Modal Styles */
+.modal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 10000;
+    animation: fadeIn 0.3s ease;
+}
+
+.modal.show {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.modal-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.7);
+    backdrop-filter: blur(8px);
+    animation: fadeIn 0.3s ease;
+}
+
+.modal-content {
+    position: relative;
+    background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+    border: 2px solid #334155;
+    border-radius: 24px;
+    max-width: 540px;
+    width: 90%;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+    animation: slideUp 0.3s ease;
+    overflow: hidden;
+}
+
+.modal-header {
+    text-align: center;
+    padding: 40px 32px 24px;
+    border-bottom: 1px solid #334155;
+}
+
+.modal-icon {
+    width: 80px;
+    height: 80px;
+    margin: 0 auto 20px;
+    background: linear-gradient(135deg, rgba(239, 68, 68, 0.2), rgba(239, 68, 68, 0.05));
+    border: 2px solid rgba(239, 68, 68, 0.3);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    animation: pulse 2s infinite;
+}
+
+.modal-icon svg {
+    color: #ef4444;
+}
+
+.modal-title {
+    font-size: 24px;
+    font-weight: 700;
+    color: white;
+    margin-bottom: 8px;
+}
+
+.modal-subtitle {
+    font-size: 14px;
+    color: #94a3b8;
+}
+
+.modal-body {
+    padding: 32px;
+}
+
+.warning-list {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.warning-item {
+    display: flex;
+    gap: 16px;
+    padding: 16px;
+    background: rgba(15, 23, 42, 0.8);
+    border: 1px solid #334155;
+    border-radius: 12px;
+    transition: all 0.2s;
+}
+
+.warning-item:hover {
+    border-color: #475569;
+    transform: translateX(4px);
+}
+
+.warning-icon {
+    font-size: 28px;
+    flex-shrink: 0;
+}
+
+.warning-text {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.warning-text strong {
+    color: #e2e8f0;
+    font-size: 15px;
+    font-weight: 600;
+}
+
+.warning-text span {
+    color: #94a3b8;
+    font-size: 13px;
+    line-height: 1.5;
+}
+
+.modal-footer {
+    padding: 24px 32px;
+    background: rgba(15, 23, 42, 0.5);
+    border-top: 1px solid #334155;
+    display: flex;
+    gap: 12px;
+}
+
+.btn-modal {
+    flex: 1;
+    padding: 14px 24px;
+    border: none;
+    border-radius: 12px;
+    font-weight: 600;
+    font-size: 15px;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+}
+
+.btn-cancel {
+    background: #334155;
+    color: #e2e8f0;
+    border: 1px solid #475569;
+}
+
+.btn-cancel:hover {
+    background: #475569;
+    transform: translateY(-2px);
+}
+
+.btn-danger {
+    background: linear-gradient(135deg, #ef4444, #dc2626);
+    color: white;
+    box-shadow: 0 4px 12px rgba(239, 68, 68, 0.4);
+}
+
+.btn-danger:hover {
+    background: linear-gradient(135deg, #dc2626, #b91c1c);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(239, 68, 68, 0.6);
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+@keyframes slideUp {
+    from {
+        opacity: 0;
+        transform: translateY(30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes pulse {
+    0%, 100% {
+        transform: scale(1);
+    }
+    50% {
+        transform: scale(1.05);
+    }
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+@keyframes slideIn {
+    from { transform: translateX(400px); opacity: 0; }
+    to { transform: translateX(0); opacity: 1; }
+}
+
+@keyframes slideOut {
+    from { transform: translateX(0); opacity: 1; }
+    to { transform: translateX(400px); opacity: 0; }
+}
+
+/* Account Row Styles */
 .account-row {
     display: flex;
     justify-content: space-between;
@@ -340,6 +629,109 @@
 </style>
 
 <script>
+// Mostrar modal de desconexão
+function showDisconnectModal() {
+    const modal = document.getElementById('disconnectModal');
+    modal.classList.add('show');
+    document.body.style.overflow = 'hidden';
+}
+
+// Fechar modal de desconexão
+function closeDisconnectModal() {
+    const modal = document.getElementById('disconnectModal');
+    modal.classList.remove('show');
+    document.body.style.overflow = '';
+}
+
+// Fechar modal ao pressionar ESC
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        closeDisconnectModal();
+    }
+});
+
+// Confirmar desconexão
+async function confirmDisconnect() {
+    const modal = document.getElementById('disconnectModal');
+    const dangerBtn = modal.querySelector('.btn-danger');
+    const originalHTML = dangerBtn.innerHTML;
+    
+    dangerBtn.innerHTML = '<svg style="width: 18px; height: 18px; animation: spin 1s linear infinite;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2"/></svg> Desconectando...';
+    dangerBtn.disabled = true;
+    
+    try {
+        const response = await fetch('index.php?page=integracoes-meta-remover', {
+            method: 'POST'
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            showNotification('success', result.message);
+            setTimeout(() => {
+                window.location.href = 'index.php?page=integracoes-meta';
+            }, 1500);
+        } else {
+            showNotification('error', result.message);
+            dangerBtn.innerHTML = originalHTML;
+            dangerBtn.disabled = false;
+        }
+    } catch (error) {
+        showNotification('error', 'Erro ao desconectar: ' + error.message);
+        dangerBtn.innerHTML = originalHTML;
+        dangerBtn.disabled = false;
+    }
+}
+
+// Sistema de notificações
+function showNotification(type, message) {
+    const notification = document.createElement('div');
+    notification.style.cssText = `
+        position: fixed;
+        top: 24px;
+        right: 24px;
+        padding: 16px 24px;
+        border-radius: 12px;
+        color: white;
+        font-weight: 600;
+        font-size: 15px;
+        z-index: 10001;
+        animation: slideIn 0.3s ease;
+        box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+        max-width: 400px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    `;
+    
+    if (type === 'success') {
+        notification.style.background = 'linear-gradient(135deg, #10b981, #059669)';
+        notification.innerHTML = `
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="20 6 9 17 4 12"/>
+            </svg>
+            <span>${message}</span>
+        `;
+    } else {
+        notification.style.background = 'linear-gradient(135deg, #ef4444, #dc2626)';
+        notification.innerHTML = `
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"/>
+                <line x1="15" y1="9" x2="9" y2="15"/>
+                <line x1="9" y1="9" x2="15" y2="15"/>
+            </svg>
+            <span>${message}</span>
+        `;
+    }
+    
+    document.body.appendChild(notification);
+    
+    setTimeout(() => {
+        notification.style.animation = 'slideOut 0.3s ease';
+        setTimeout(() => notification.remove(), 300);
+    }, 3000);
+}
+
 // Toggle individual
 async function toggleAccount(accountId, isActive) {
     const status = isActive ? 'active' : 'inactive';
@@ -357,12 +749,12 @@ async function toggleAccount(accountId, isActive) {
         const result = await response.json();
         
         if (!result.success) {
-            alert('✗ ' + result.message);
+            showNotification('error', result.message);
             // Reverte o toggle
             event.target.checked = !isActive;
         }
     } catch (error) {
-        alert('Erro ao atualizar conta: ' + error.message);
+        showNotification('error', 'Erro ao atualizar conta: ' + error.message);
         event.target.checked = !isActive;
     }
 }
@@ -393,14 +785,15 @@ async function syncAccounts() {
         const result = await response.json();
         
         if (result.success) {
-            alert('✓ ' + result.message);
-            window.location.reload();
+            showNotification('success', result.message);
+            setTimeout(() => window.location.reload(), 1500);
         } else {
-            alert('✗ ' + result.message);
+            showNotification('error', result.message);
+            btn.innerHTML = originalText;
+            btn.disabled = false;
         }
     } catch (error) {
-        alert('Erro ao sincronizar: ' + error.message);
-    } finally {
+        showNotification('error', 'Erro ao sincronizar: ' + error.message);
         btn.innerHTML = originalText;
         btn.disabled = false;
     }
@@ -417,13 +810,31 @@ async function syncAccount(accountId) {
     // TODO: Implementar sincronização individual
 }
 
-// Desconectar conta
+// Desconectar conta individual
 async function disconnectAccount(accountId) {
     if (!confirm('Tem certeza que deseja desconectar esta conta?\n\nAs campanhas não serão mais sincronizadas.')) {
         return;
     }
     
-    // TODO: Implementar desconexão
-    alert('Funcionalidade em desenvolvimento');
+    try {
+        const formData = new FormData();
+        formData.append('account_id', accountId);
+        
+        const response = await fetch('index.php?page=integracoes-meta-disconnect-account', {
+            method: 'POST',
+            body: formData
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            showNotification('success', 'Conta desconectada com sucesso!');
+            setTimeout(() => window.location.reload(), 1500);
+        } else {
+            showNotification('error', result.message);
+        }
+    } catch (error) {
+        showNotification('error', 'Erro ao desconectar conta: ' + error.message);
+    }
 }
 </script>

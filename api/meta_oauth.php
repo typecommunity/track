@@ -60,7 +60,9 @@ try {
     }
     
     // URL de callback (mesma usada na autorização)
-    $redirectUri = rtrim($_SERVER['REQUEST_SCHEME'] . '://' . $_SERVER['HTTP_HOST'] . $_SERVER['SCRIPT_NAME']);
+    // FIX: REQUEST_SCHEME pode não estar disponível em alguns servidores
+    $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+    $redirectUri = $protocol . '://' . $_SERVER['HTTP_HOST'] . $_SERVER['SCRIPT_NAME'];
     
     // Troca o código por access token
     $tokenUrl = 'https://graph.facebook.com/v18.0/oauth/access_token?' . http_build_query([
@@ -72,6 +74,7 @@ try {
     
     $ch = curl_init($tokenUrl);
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
     $response = curl_exec($ch);
     $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
     curl_close($ch);
@@ -100,6 +103,7 @@ try {
     
     $ch = curl_init($longLivedUrl);
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
     $longLivedResponse = curl_exec($ch);
     curl_close($ch);
     
@@ -129,6 +133,7 @@ try {
     
     $ch = curl_init($accountsUrl);
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
     $accountsResponse = curl_exec($ch);
     curl_close($ch);
     
