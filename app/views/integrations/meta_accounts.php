@@ -193,18 +193,19 @@
                         </div>
                         <div class="account-meta">
                             ID: <?= htmlspecialchars($account['account_id']) ?> •
-                            <?= $account['status'] === 'active' ? '✅ Ativa' : '⏸ Desabilitada' ?>
+                            <span class="status-text"><?= $account['status'] === 'active' ? '✅ Ativa' : '⏸ Desabilitada' ?></span>
                         </div>
                     </div>
                 </div>
                 
                 <div class="account-actions">
-                    <!-- Toggle Switch -->
+                    <!-- Toggle Switch - CORRIGIDO -->
                     <label class="toggle-switch">
                         <input 
                             type="checkbox" 
+                            data-account-id="<?= $account['id'] ?>"
                             <?= $account['status'] === 'active' ? 'checked' : '' ?>
-                            onchange="toggleAccount(<?= $account['id'] ?>, this.checked)"
+                            class="account-toggle"
                         >
                         <span class="toggle-slider"></span>
                     </label>
@@ -416,13 +417,10 @@
     box-shadow: 0 6px 20px rgba(239, 68, 68, 0.6);
 }
 
+/* Animations */
 @keyframes fadeIn {
-    from {
-        opacity: 0;
-    }
-    to {
-        opacity: 1;
-    }
+    from { opacity: 0; }
+    to { opacity: 1; }
 }
 
 @keyframes slideUp {
@@ -437,12 +435,8 @@
 }
 
 @keyframes pulse {
-    0%, 100% {
-        transform: scale(1);
-    }
-    50% {
-        transform: scale(1.05);
-    }
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.05); }
 }
 
 @keyframes spin {
@@ -626,9 +620,78 @@
 .dropdown-menu a:hover {
     background: #334155;
 }
+
+/* Empty State */
+.empty-state {
+    text-align: center;
+    padding: 60px 20px;
+}
+
+.empty-state-icon {
+    font-size: 64px;
+    margin-bottom: 20px;
+}
+
+.empty-state-title {
+    font-size: 20px;
+    font-weight: 600;
+    color: #e2e8f0;
+    margin-bottom: 10px;
+}
+
+.empty-state p {
+    color: #94a3b8;
+    font-size: 14px;
+}
 </style>
 
 <script>
+// Event delegation para todos os toggles - CORRIGIDO
+document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('.account-toggle').forEach(checkbox => {
+        checkbox.addEventListener('change', async function() {
+            const accountId = parseInt(this.getAttribute('data-account-id'));
+            const isActive = this.checked;
+            const status = isActive ? 'active' : 'inactive';
+            
+            try {
+                const formData = new FormData();
+                formData.append('account_id', accountId);
+                formData.append('status', status);
+                
+                const response = await fetch('index.php?page=integracoes-meta-toggle', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    showNotification('success', result.message);
+                    
+                    // Atualiza o visual do card
+                    const accountRow = this.closest('.account-row');
+                    if (accountRow) {
+                        accountRow.className = 'account-row ' + (isActive ? 'active' : 'inactive');
+                        
+                        // Atualiza o status text
+                        const statusText = accountRow.querySelector('.status-text');
+                        if (statusText) {
+                            statusText.textContent = isActive ? '✅ Ativa' : '⏸ Desabilitada';
+                        }
+                    }
+                } else {
+                    showNotification('error', result.message);
+                    this.checked = !isActive;
+                }
+            } catch (error) {
+                showNotification('error', 'Erro ao atualizar conta: ' + error.message);
+                this.checked = !isActive;
+            }
+        });
+    });
+});
+
 // Mostrar modal de desconexão
 function showDisconnectModal() {
     const modal = document.getElementById('disconnectModal');
@@ -732,37 +795,9 @@ function showNotification(type, message) {
     }, 3000);
 }
 
-// Toggle individual
-async function toggleAccount(accountId, isActive) {
-    const status = isActive ? 'active' : 'inactive';
-    
-    try {
-        const formData = new FormData();
-        formData.append('account_id', accountId);
-        formData.append('status', status);
-        
-        const response = await fetch('index.php?page=integracoes-meta-toggle', {
-            method: 'POST',
-            body: formData
-        });
-        
-        const result = await response.json();
-        
-        if (!result.success) {
-            showNotification('error', result.message);
-            // Reverte o toggle
-            event.target.checked = !isActive;
-        }
-    } catch (error) {
-        showNotification('error', 'Erro ao atualizar conta: ' + error.message);
-        event.target.checked = !isActive;
-    }
-}
-
-// Ativar/Desativar todas
+// Ativar/Desativar todas - CORRIGIDO
 function toggleAll(activate) {
-    const checkboxes = document.querySelectorAll('.toggle-switch input[type="checkbox"]');
-    checkboxes.forEach(checkbox => {
+    document.querySelectorAll('.account-toggle').forEach(checkbox => {
         if (checkbox.checked !== activate) {
             checkbox.checked = activate;
             checkbox.dispatchEvent(new Event('change'));
