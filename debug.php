@@ -1,190 +1,123 @@
 <?php
 /**
- * ========================================
- * TESTE SUPER BÁSICO
- * CAMINHO: /utmtrack/test_basic.php
- * ========================================
- * 
- * Acesse: https://ataweb.com.br/utmtrack/test_basic.php
+ * Script de Debug - Coloque na raiz do projeto
+ * Acesse: http://seudominio.com/debug.php
  */
 
-// Ativa exibição de erros
-error_reporting(E_ALL);
-ini_set('display_errors', 1);
+echo "<h1>Debug UTMTrack</h1>";
 
-echo "<!DOCTYPE html>
-<html>
-<head>
-    <meta charset='UTF-8'>
-    <title>Teste Básico PHP</title>
-    <style>
-        body { font-family: monospace; background: #0f172a; color: #e2e8f0; padding: 20px; }
-        .success { color: #10b981; }
-        .error { color: #ef4444; }
-        .info { color: #3b82f6; }
-        pre { background: #1e293b; padding: 15px; border-radius: 8px; overflow-x: auto; }
-    </style>
-</head>
-<body>
-<h1>🧪 Teste Básico PHP - UTMTrack</h1>
-";
-
-// Teste 1: PHP Funcionando
-echo "<h2 class='success'>✅ 1. PHP está funcionando</h2>";
-echo "<p>Versão do PHP: <strong>" . PHP_VERSION . "</strong></p>";
-
-// Teste 2: Sessão
-echo "<h2>2. Teste de Sessão</h2>";
-try {
-    session_start();
-    echo "<p class='success'>✅ Session iniciada</p>";
-    echo "<p>Session ID: <strong>" . session_id() . "</strong></p>";
-    echo "<p>Session Status: <strong>" . session_status() . "</strong></p>";
-    
-    if (isset($_SESSION['user_id'])) {
-        echo "<p class='success'>✅ Usuário logado: <strong>" . $_SESSION['user_id'] . "</strong></p>";
-    } else {
-        echo "<p class='error'>❌ Usuário NÃO está logado</p>";
-        echo "<p>Faça login em: <a href='/utmtrack/index.php' style='color: #667eea;'>index.php</a></p>";
-    }
-} catch (Exception $e) {
-    echo "<p class='error'>❌ Erro na sessão: " . $e->getMessage() . "</p>";
-}
-
-// Teste 3: Caminhos de arquivo
-echo "<h2>3. Teste de Caminhos</h2>";
-echo "<p>__FILE__: <strong>" . __FILE__ . "</strong></p>";
-echo "<p>__DIR__: <strong>" . __DIR__ . "</strong></p>";
-echo "<p>DOCUMENT_ROOT: <strong>" . $_SERVER['DOCUMENT_ROOT'] . "</strong></p>";
-
-$paths = [
-    __DIR__ . '/core/Database.php',
-    __DIR__ . '/Core/Database.php',
+echo "<h2>1. Verificando Estrutura de Pastas</h2>";
+$folders = [
+    'core',
+    'app/controllers',
+    'app/views/utms',
+    'public/api',
+    'public/js',
+    'cron'
 ];
 
-echo "<h3>Procurando Database.php:</h3>";
-foreach ($paths as $path) {
-    $exists = file_exists($path);
-    echo "<p>";
-    echo $exists ? "✅" : "❌";
-    echo " <strong>" . $path . "</strong>";
-    echo $exists ? " (EXISTE)" : " (NÃO EXISTE)";
-    echo "</p>";
-    
-    if ($exists) {
-        echo "<p class='success'>🎯 Arquivo encontrado!</p>";
-        break;
-    }
+foreach ($folders as $folder) {
+    $exists = is_dir($folder);
+    $icon = $exists ? '✅' : '❌';
+    echo "<p>{$icon} {$folder}: " . ($exists ? 'OK' : 'NÃO EXISTE') . "</p>";
 }
 
-// Teste 4: Database
-echo "<h2>4. Teste de Database</h2>";
-try {
-    $dbPath = null;
-    foreach ($paths as $path) {
-        if (file_exists($path)) {
-            $dbPath = $path;
-            break;
-        }
-    }
-    
-    if ($dbPath) {
-        require_once $dbPath;
-        echo "<p class='success'>✅ Database.php carregado: $dbPath</p>";
-        
-        // Tenta instanciar
-        $db = Database::getInstance();
-        echo "<p class='success'>✅ Database::getInstance() funcionou!</p>";
-        
-        // Testa query simples
-        if (isset($_SESSION['user_id'])) {
-            $campaigns = $db->fetchAll("SELECT id, campaign_name FROM campaigns WHERE user_id = :user_id LIMIT 3", [
-                'user_id' => $_SESSION['user_id']
-            ]);
-            
-            echo "<p class='success'>✅ Query executada! Encontradas <strong>" . count($campaigns) . "</strong> campanhas</p>";
-            
-            if (count($campaigns) > 0) {
-                echo "<pre>";
-                print_r($campaigns);
-                echo "</pre>";
-            }
-        } else {
-            echo "<p class='info'>ℹ️ Faça login para testar queries</p>";
-        }
-        
-    } else {
-        echo "<p class='error'>❌ Database.php NÃO encontrado em nenhum caminho</p>";
-    }
-    
-} catch (Exception $e) {
-    echo "<p class='error'>❌ Erro no Database: " . $e->getMessage() . "</p>";
-    echo "<pre>" . $e->getTraceAsString() . "</pre>";
-}
-
-// Teste 5: JSON
-echo "<h2>5. Teste de JSON</h2>";
-$testArray = [
-    'success' => true,
-    'message' => 'Teste de JSON funcionando',
-    'timestamp' => date('Y-m-d H:i:s')
+echo "<h2>2. Verificando Arquivos</h2>";
+$files = [
+    'core/Database.php',
+    'core/FacebookCapi.php',
+    'app/controllers/UtmController.php',
+    'app/views/utms/index.php',
+    'app/views/utms/setup.php',
+    'app/views/utms/scripts.php',
+    'public/api/capi-events.php',
+    'public/js/capi-tracker.js',
+    'cron/process-capi-events.php'
 ];
 
-echo "<p>Array PHP:</p>";
-echo "<pre>" . print_r($testArray, true) . "</pre>";
+foreach ($files as $file) {
+    $exists = file_exists($file);
+    $icon = $exists ? '✅' : '❌';
+    echo "<p>{$icon} {$file}: " . ($exists ? 'OK' : 'NÃO EXISTE') . "</p>";
+}
 
-$json = json_encode($testArray, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
-echo "<p>JSON codificado:</p>";
-echo "<pre>" . htmlspecialchars($json) . "</pre>";
+echo "<h2>3. Verificando Banco de Dados</h2>";
 
-// Teste 6: Teste UPDATE (se logado)
-if (isset($_SESSION['user_id']) && isset($db)) {
-    echo "<h2>6. Teste de UPDATE</h2>";
+// Tenta carregar config
+$configFile = 'config/database.php';
+if (file_exists($configFile)) {
+    echo "<p>✅ config/database.php existe</p>";
+    
+    $dbConfig = require $configFile;
     
     try {
-        // Busca primeira campanha
-        $campaign = $db->fetch("SELECT id, campaign_name FROM campaigns WHERE user_id = :user_id LIMIT 1", [
-            'user_id' => $_SESSION['user_id']
-        ]);
+        $dsn = "mysql:host={$dbConfig['host']};dbname={$dbConfig['database']};charset={$dbConfig['charset']}";
+        $pdo = new PDO($dsn, $dbConfig['username'], $dbConfig['password']);
+        echo "<p>✅ Conexão com banco de dados: OK</p>";
         
-        if ($campaign) {
-            echo "<p class='info'>Campanha encontrada: ID={$campaign['id']}, Nome={$campaign['campaign_name']}</p>";
-            
-            // Tenta atualizar (adiciona [TESTE] no nome)
-            $newName = $campaign['campaign_name'] . ' [TESTE]';
-            
-            $affected = $db->update('campaigns',
-                ['campaign_name' => $newName],
-                'id = :id AND user_id = :user_id',
-                ['id' => $campaign['id'], 'user_id' => $_SESSION['user_id']]
-            );
-            
-            echo "<p class='success'>✅ UPDATE executado! Linhas afetadas: <strong>$affected</strong></p>";
-            
-            // Verifica se atualizou
-            $updated = $db->fetch("SELECT id, campaign_name FROM campaigns WHERE id = :id", [
-                'id' => $campaign['id']
-            ]);
-            
-            echo "<p>Nome após update: <strong>{$updated['campaign_name']}</strong></p>";
-            
-            // Reverte
-            $db->update('campaigns',
-                ['campaign_name' => $campaign['campaign_name']],
-                'id = :id',
-                ['id' => $campaign['id']]
-            );
-            
-            echo "<p class='success'>✅ Nome revertido para o original</p>";
-            
+        // Verifica tabelas
+        $tables = ['pixels', 'capi_configs', 'capi_events', 'capi_logs', 'users'];
+        foreach ($tables as $table) {
+            $stmt = $pdo->query("SHOW TABLES LIKE '{$table}'");
+            $exists = $stmt->rowCount() > 0;
+            $icon = $exists ? '✅' : '❌';
+            echo "<p>{$icon} Tabela '{$table}': " . ($exists ? 'OK' : 'NÃO EXISTE') . "</p>";
+        }
+        
+    } catch (PDOException $e) {
+        echo "<p>❌ Erro na conexão: " . $e->getMessage() . "</p>";
+    }
+} else {
+    echo "<p>❌ config/database.php não encontrado</p>";
+}
+
+echo "<h2>4. Verificando $config</h2>";
+
+// Simula carregamento do Controller
+if (file_exists('core/Controller.php')) {
+    require_once 'core/Controller.php';
+    
+    class TestController extends Controller {
+        public function getConfig() {
+            return $this->config;
+        }
+    }
+    
+    try {
+        $test = new TestController();
+        $config = $test->getConfig();
+        
+        echo "<p>✅ \$config carregado:</p>";
+        echo "<pre>";
+        print_r($config);
+        echo "</pre>";
+        
+        if (isset($config['base_url'])) {
+            echo "<p>✅ base_url: {$config['base_url']}</p>";
         } else {
-            echo "<p class='error'>❌ Nenhuma campanha encontrada para testar</p>";
+            echo "<p>❌ base_url não definido!</p>";
         }
         
     } catch (Exception $e) {
-        echo "<p class='error'>❌ Erro no teste de UPDATE: " . $e->getMessage() . "</p>";
+        echo "<p>❌ Erro ao carregar Controller: " . $e->getMessage() . "</p>";
     }
+} else {
+    echo "<p>❌ core/Controller.php não encontrado</p>";
 }
 
-echo "<hr><p style='color: #64748b;'>Fim dos testes</p>";
-echo "</body></html>";
+echo "<h2>5. Links de Teste</h2>";
+echo '<p><a href="index.php?page=utms">index.php?page=utms</a></p>';
+echo '<p><a href="index.php?page=utms&action=setup">index.php?page=utms&action=setup</a></p>';
+echo '<p><a href="index.php?page=utms&action=scripts">index.php?page=utms&action=scripts</a></p>';
+
+echo "<h2>6. PHP Info</h2>";
+echo "<p>PHP Version: " . phpversion() . "</p>";
+echo "<p>Extensions:</p>";
+echo "<ul>";
+$extensions = ['pdo', 'pdo_mysql', 'curl', 'json'];
+foreach ($extensions as $ext) {
+    $loaded = extension_loaded($ext);
+    $icon = $loaded ? '✅' : '❌';
+    echo "<li>{$icon} {$ext}: " . ($loaded ? 'OK' : 'NÃO CARREGADO') . "</li>";
+}
+echo "</ul>";
