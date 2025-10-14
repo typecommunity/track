@@ -4,7 +4,7 @@
     ========================================
     
     UTMTrack - Dashboard de Campanhas
-    Versão 11.0 FINAL - Toggle Verde + Edição Nome + Colunas Funcionais
+    Versão 14.1 FINAL COMPLETA - Orçamento corrigido
 -->
 
 <?php
@@ -124,9 +124,9 @@ $visibleColumns = $userColumns ?? ['nome', 'status', 'orcamento', 'vendas', 'cpa
 
 // Paths dos assets
 $projectRoot = 'https://ataweb.com.br/utmtrack';
-$cssPath = $projectRoot . '/assets/css/campaigns-dashboard.css?v=11.0';
-$jsPath = $projectRoot . '/assets/js/campaigns-dashboard.js?v=11.0';
-$debugMode = false;
+$cssPath = $projectRoot . '/assets/css/campaigns-dashboard.css?v=14.1';
+$jsPath = $projectRoot . '/assets/js/campaigns-dashboard.js?v=14.1';
+$debugMode = true;
 ?>
 
 <!DOCTYPE html>
@@ -134,7 +134,7 @@ $debugMode = false;
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>UTMTrack - Dashboard de Campanhas</title>
+    <title>UTMTrack - Dashboard de Campanhas v14.1</title>
     
     <link rel="stylesheet" href="<?= $cssPath ?>">
     
