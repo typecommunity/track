@@ -1,15 +1,20 @@
 /**
- * UTMTrack - JavaScript do Dashboard de Campanhas
- * Arquivo: assets/js/campaigns-dashboard.js
- * Versão: 5.0
+ * ========================================
+ * CAMINHO: /utmtrack/assets/js/campaigns-dashboard.js
+ * ========================================
+ * 
+ * UTMTrack - JavaScript Dashboard COMPLETO
+ * Versão 12.0 - Com Drag & Drop + Resize
  */
 
-// ========================================
-// CONFIGURAÇÃO DE COLUNAS
-// ========================================
+// Variável global do período
+let currentPeriod = 'maximum';
+let customDateRange = { start: null, end: null };
+
+// Configuração de colunas
 const allColumns = {
     'nome': { label: 'Nome da Campanha', default: true, minWidth: 250 },
-    'status': { label: 'Status', default: true, minWidth: 120 },
+    'status': { label: 'Status', default: true, minWidth: 100 },
     'orcamento': { label: 'Orçamento', default: true, minWidth: 130 },
     'vendas': { label: 'Vendas', default: true, minWidth: 100 },
     'cpa': { label: 'CPA', default: true, minWidth: 120 },
@@ -31,14 +36,13 @@ const allColumns = {
     'ultima_sync': { label: 'Última Sync', default: false, minWidth: 150 }
 };
 
-// Inicializa com configuração do usuário ou padrão
 let selectedColumnsList = window.userColumnsConfig || 
     Object.keys(allColumns).filter(key => allColumns[key].default);
 
 let columnWidths = {};
 
 // ========================================
-// GERENCIAMENTO DE LARGURAS DE COLUNAS
+// FUNÇÕES DE LARGURA
 // ========================================
 function loadColumnWidths() {
     const saved = localStorage.getItem('campaignColumnWidths');
@@ -60,27 +64,38 @@ function saveColumnWidths() {
 // ========================================
 function renderTable() {
     const header = document.getElementById('tableHeader');
-    
-    if (!header) {
-        console.error('Header da tabela não encontrado');
-        return;
-    }
+    if (!header) return;
     
     header.innerHTML = '';
     
-    // Renderiza os headers
     selectedColumnsList.forEach(col => {
         if (allColumns[col]) {
             const th = document.createElement('th');
+            th.setAttribute('data-column', col);
             const width = columnWidths[col] || allColumns[col].minWidth;
             th.style.width = width + 'px';
-            th.setAttribute('draggable', 'true');
-            th.innerHTML = allColumns[col].label;
+            th.style.minWidth = allColumns[col].minWidth + 'px';
+            th.style.position = 'relative';
+            
+            // Conteúdo do header
+            const thContent = document.createElement('div');
+            thContent.className = 'th-content';
+            thContent.innerHTML = `
+                <span class="th-drag-icon">⋮⋮</span>
+                <span>${allColumns[col].label}</span>
+            `;
+            
+            // Resize handle
+            const resizeHandle = document.createElement('div');
+            resizeHandle.className = 'resize-handle';
+            
+            th.appendChild(thContent);
+            th.appendChild(resizeHandle);
             header.appendChild(th);
         }
     });
     
-    // Mostra/oculta as células de dados
+    // Atualiza células do body
     const rows = document.querySelectorAll('#tableBody tr');
     rows.forEach(row => {
         if (!row.hasAttribute('data-id')) return;
@@ -92,16 +107,226 @@ function renderTable() {
                     cell.style.display = '';
                     const width = columnWidths[col] || allColumns[col].minWidth;
                     cell.style.width = width + 'px';
+                    cell.style.minWidth = allColumns[col].minWidth + 'px';
                 } else {
                     cell.style.display = 'none';
                 }
             }
         });
     });
+    
+    // Inicializa drag & drop e resize
+    initDragDropHeaders();
+    initColumnResize();
 }
 
 // ========================================
-// INLINE EDITING - NOME DA CAMPANHA
+// DRAG & DROP DE COLUNAS
+// ========================================
+let draggedColumn = null;
+
+function initDragDropHeaders() {
+    const headers = document.querySelectorAll('#tableHeader th');
+    
+    headers.forEach(th => {
+        th.draggable = true;
+        
+        th.addEventListener('dragstart', (e) => {
+            draggedColumn = th.getAttribute('data-column');
+            th.classList.add('dragging');
+            e.dataTransfer.effectAllowed = 'move';
+        });
+        
+        th.addEventListener('dragend', (e) => {
+            th.classList.remove('dragging');
+            headers.forEach(h => h.classList.remove('drag-over'));
+        });
+        
+        th.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'move';
+            
+            const afterElement = getDragAfterElement(e.currentTarget.parentElement, e.clientX);
+            if (afterElement == null) {
+                th.classList.add('drag-over');
+            }
+        });
+        
+        th.addEventListener('dragleave', (e) => {
+            th.classList.remove('drag-over');
+        });
+        
+        th.addEventListener('drop', (e) => {
+            e.preventDefault();
+            th.classList.remove('drag-over');
+            
+            const targetColumn = th.getAttribute('data-column');
+            if (draggedColumn && draggedColumn !== targetColumn) {
+                const dragIndex = selectedColumnsList.indexOf(draggedColumn);
+                const targetIndex = selectedColumnsList.indexOf(targetColumn);
+                
+                // Remove da posição atual
+                selectedColumnsList.splice(dragIndex, 1);
+                // Insere na nova posição
+                selectedColumnsList.splice(targetIndex, 0, draggedColumn);
+                
+                // Re-renderiza
+                renderTable();
+                saveColumnsOrder();
+            }
+        });
+    });
+}
+
+function getDragAfterElement(container, x) {
+    const draggableElements = [...container.querySelectorAll('th:not(.dragging)')];
+    
+    return draggableElements.reduce((closest, child) => {
+        const box = child.getBoundingClientRect();
+        const offset = x - box.left - box.width / 2;
+        
+        if (offset < 0 && offset > closest.offset) {
+            return { offset: offset, element: child };
+        } else {
+            return closest;
+        }
+    }, { offset: Number.NEGATIVE_INFINITY }).element;
+}
+
+// ========================================
+// RESIZE DE COLUNAS
+// ========================================
+let resizingColumn = null;
+let startX = 0;
+let startWidth = 0;
+
+function initColumnResize() {
+    const headers = document.querySelectorAll('#tableHeader th');
+    
+    headers.forEach(th => {
+        const resizeHandle = th.querySelector('.resize-handle');
+        if (!resizeHandle) return;
+        
+        resizeHandle.addEventListener('mousedown', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            resizingColumn = th;
+            startX = e.clientX;
+            startWidth = th.offsetWidth;
+            
+            resizeHandle.classList.add('resizing');
+            document.body.style.cursor = 'col-resize';
+            document.body.style.userSelect = 'none';
+            
+            document.addEventListener('mousemove', onMouseMove);
+            document.addEventListener('mouseup', onMouseUp);
+        });
+    });
+}
+
+function onMouseMove(e) {
+    if (!resizingColumn) return;
+    
+    const diff = e.clientX - startX;
+    const newWidth = Math.max(
+        allColumns[resizingColumn.getAttribute('data-column')].minWidth,
+        startWidth + diff
+    );
+    
+    resizingColumn.style.width = newWidth + 'px';
+    
+    // Atualiza células correspondentes
+    const col = resizingColumn.getAttribute('data-column');
+    document.querySelectorAll(`td[data-column="${col}"]`).forEach(cell => {
+        cell.style.width = newWidth + 'px';
+    });
+}
+
+function onMouseUp(e) {
+    if (!resizingColumn) return;
+    
+    const resizeHandle = resizingColumn.querySelector('.resize-handle');
+    if (resizeHandle) {
+        resizeHandle.classList.remove('resizing');
+    }
+    
+    const col = resizingColumn.getAttribute('data-column');
+    columnWidths[col] = resizingColumn.offsetWidth;
+    saveColumnWidths();
+    
+    resizingColumn = null;
+    document.body.style.cursor = '';
+    document.body.style.userSelect = '';
+    
+    document.removeEventListener('mousemove', onMouseMove);
+    document.removeEventListener('mouseup', onMouseUp);
+}
+
+// Salva ordem das colunas
+function saveColumnsOrder() {
+    localStorage.setItem('campaignColumnsOrder', JSON.stringify(selectedColumnsList));
+}
+
+// Carrega ordem das colunas
+function loadColumnsOrder() {
+    const saved = localStorage.getItem('campaignColumnsOrder');
+    if (saved) {
+        selectedColumnsList = JSON.parse(saved);
+    }
+}
+
+// ========================================
+// TOGGLE STATUS - FUNÇÃO PRINCIPAL
+// ========================================
+async function toggleCampaignStatus(checkbox, campaignId, metaCampaignId) {
+    const newStatus = checkbox.checked ? 'ACTIVE' : 'PAUSED';
+    const newStatusLower = checkbox.checked ? 'active' : 'paused';
+    const originalChecked = !checkbox.checked;
+    
+    checkbox.disabled = true;
+    
+    try {
+        const response = await fetch(window.location.origin + '/utmtrack/ajax_sync.php?action=update_status', {
+            method: 'POST',
+            headers: { 
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                campaign_id: campaignId,
+                meta_campaign_id: metaCampaignId,
+                status: newStatus
+            }),
+            credentials: 'same-origin'
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            const row = checkbox.closest('tr');
+            if (row) {
+                row.setAttribute('data-status', newStatusLower);
+            }
+            
+            showToast(result.meta_updated ? 
+                '✅ Status atualizado no Meta Ads!' : 
+                '✅ Status atualizado localmente', 
+                'success'
+            );
+        } else {
+            checkbox.checked = originalChecked;
+            throw new Error(result.message);
+        }
+    } catch (error) {
+        checkbox.checked = originalChecked;
+        showToast('❌ ' + error.message, 'error');
+    } finally {
+        checkbox.disabled = false;
+    }
+}
+
+// ========================================
+// INLINE EDITING
 // ========================================
 function makeEditableName(element, campaignId) {
     if (element.classList.contains('editing')) return;
@@ -115,10 +340,7 @@ function makeEditableName(element, campaignId) {
     element.querySelector('input').select();
 }
 
-// ========================================
-// INLINE EDITING - OUTROS CAMPOS
-// ========================================
-function makeEditable(element, campaignId, field, type = 'text') {
+function makeEditable(element, campaignId, field, type = 'text', metaCampaignId = '') {
     if (element.classList.contains('editing')) return;
     
     const currentValue = element.getAttribute('data-value');
@@ -126,30 +348,34 @@ function makeEditable(element, campaignId, field, type = 'text') {
     element.innerHTML = `<input type="${type === 'currency' ? 'number' : 'text'}" 
                                 value="${currentValue}" 
                                 step="0.01"
-                                onblur="saveField(this, ${campaignId}, '${field}', '${type}')"
+                                onblur="saveField(this, ${campaignId}, '${field}', '${type}', '${metaCampaignId}')"
                                 onkeypress="if(event.key==='Enter') this.blur()">`;
     element.querySelector('input').focus();
     element.querySelector('input').select();
 }
 
-async function saveField(input, campaignId, field, type) {
+async function saveField(input, campaignId, field, type, metaCampaignId = '') {
     const newValue = input.value;
     const parent = input.parentElement;
     
     parent.innerHTML = '<span class="saving-indicator">💾 Salvando...</span>';
     
     try {
-        const response = await fetch('index.php?page=campanhas-update-field', {
+        const action = field === 'budget' && metaCampaignId ? 'update_budget' : 'update_field';
+        const url = window.location.origin + `/utmtrack/ajax_sync.php?action=${action}`;
+        
+        const response = await fetch(url, {
             method: 'POST',
             headers: { 
-                'Content-Type': 'application/json',
-                'X-Requested-With': 'XMLHttpRequest'
+                'Content-Type': 'application/json'
             },
             body: JSON.stringify({
                 campaign_id: campaignId,
+                meta_campaign_id: metaCampaignId,
                 field: field,
                 value: newValue
-            })
+            }),
+            credentials: 'same-origin'
         });
         
         const result = await response.json();
@@ -165,195 +391,214 @@ async function saveField(input, campaignId, field, type) {
                 });
             } else {
                 parent.innerHTML = newValue;
+                
+                // Se é o nome da campanha, atualiza também o data-name da row
+                if (field === 'campaign_name') {
+                    const row = parent.closest('tr');
+                    if (row) {
+                        row.setAttribute('data-name', newValue.toLowerCase());
+                    }
+                }
             }
             
-            parent.style.background = 'rgba(16, 185, 129, 0.2)';
-            setTimeout(() => {
-                parent.style.background = '';
-            }, 1000);
+            if (result.meta_updated) {
+                showToast('✅ Atualizado no Meta Ads!', 'success');
+            } else {
+                showToast('✅ Salvo com sucesso!', 'success');
+            }
         } else {
             throw new Error(result.message);
         }
     } catch (error) {
-        alert('❌ Erro ao salvar: ' + error.message);
+        showToast('❌ ' + error.message, 'error');
         parent.classList.remove('editing');
-        if (field === 'campaign_name') {
-            makeEditableName(parent, campaignId);
+        
+        if (type === 'currency') {
+            parent.innerHTML = 'R$ ' + parseFloat(parent.getAttribute('data-value')).toLocaleString('pt-BR', {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+            });
         } else {
-            makeEditable(parent, campaignId, field, type);
+            parent.innerHTML = parent.getAttribute('data-value');
         }
     }
 }
 
-async function toggleStatus(element, campaignId) {
-    const currentStatus = element.closest('tr').getAttribute('data-status');
-    const newStatus = currentStatus === 'active' ? 'paused' : 'active';
+// ========================================
+// FUNÇÕES DE PERÍODO
+// ========================================
+function changePeriod(period, button) {
+    currentPeriod = period;
+    
+    document.querySelectorAll('.period-tab').forEach(btn => {
+        btn.classList.remove('active');
+    });
+    button.classList.add('active');
+    
+    if (period !== 'custom') {
+        document.getElementById('customDateRange').style.display = 'none';
+    }
+    
+    console.log('📅 Período:', period);
+}
+
+function toggleCustomPeriod(button) {
+    const customRange = document.getElementById('customDateRange');
+    
+    document.querySelectorAll('.period-tab').forEach(btn => {
+        if (btn !== button) btn.classList.remove('active');
+    });
+    
+    button.classList.add('active');
+    customRange.style.display = customRange.style.display === 'none' ? 'flex' : 'none';
+}
+
+function applyCustomPeriod() {
+    const startDate = document.getElementById('startDate').value;
+    const endDate = document.getElementById('endDate').value;
+    
+    if (!startDate || !endDate) {
+        showToast('Selecione as datas', 'warning');
+        return;
+    }
+    
+    customDateRange = {
+        start: startDate,
+        end: endDate
+    };
+    
+    currentPeriod = 'custom';
+    syncAllCampaigns();
+}
+
+// ========================================
+// SINCRONIZAÇÃO - COM PERÍODO
+// ========================================
+async function syncAllCampaigns() {
+    console.log('🔄 Sincronizando período:', currentPeriod);
+    
+    const button = event?.target || document.querySelector('button[onclick*="syncAllCampaigns"]');
+    const originalHTML = button ? button.innerHTML : '';
+    
+    if (button) {
+        button.disabled = true;
+        button.innerHTML = '⏳ Sincronizando...';
+    }
     
     try {
-        const response = await fetch('index.php?page=campanhas-update-field', {
+        const payload = {
+            action: 'sync_all',
+            period: currentPeriod
+        };
+        
+        if (currentPeriod === 'custom' && customDateRange.start && customDateRange.end) {
+            payload.date_preset = 'custom';
+            payload.start_date = customDateRange.start;
+            payload.end_date = customDateRange.end;
+        } else {
+            const presets = {
+                'today': 'today',
+                'yesterday': 'yesterday',
+                'last_7d': 'last_7d',
+                'last_30d': 'last_30d',
+                'this_month': 'this_month',
+                'last_month': 'last_month',
+                'maximum': 'maximum'
+            };
+            payload.date_preset = presets[currentPeriod] || 'maximum';
+        }
+        
+        console.log('📤 Payload:', payload);
+        
+        const baseUrl = window.location.origin + '/utmtrack/';
+        const response = await fetch(baseUrl + 'ajax_sync.php?action=sync_all', {
             method: 'POST',
-            headers: { 
-                'Content-Type': 'application/json',
-                'X-Requested-With': 'XMLHttpRequest'
+            headers: {
+                'Content-Type': 'application/json'
             },
-            body: JSON.stringify({
-                campaign_id: campaignId,
-                field: 'status',
-                value: newStatus
-            })
+            body: JSON.stringify(payload),
+            credentials: 'same-origin'
         });
         
-        const result = await response.json();
+        console.log('📡 Status:', response.status);
         
-        if (result.success) {
-            element.className = 'status-badge ' + newStatus;
-            element.innerHTML = newStatus === 'active' ? '✓ Ativada' : '⏸ Desativada';
-            element.closest('tr').setAttribute('data-status', newStatus);
-            
-            if (result.meta_updated) {
-                element.style.background = 'rgba(16, 185, 129, 0.3)';
-                setTimeout(() => {
-                    element.style.background = '';
-                }, 2000);
-            }
+        const responseText = await response.text();
+        console.log('📄 Response:', responseText.substring(0, 500));
+        
+        let result;
+        try {
+            result = JSON.parse(responseText);
+        } catch (e) {
+            console.error('❌ Parse error:', e);
+            throw new Error('Resposta inválida do servidor');
         }
+        
+        if (result && result.success) {
+            showToast('✅ ' + result.message, 'success');
+            setTimeout(() => window.location.reload(), 2000);
+        } else {
+            throw new Error(result?.message || 'Erro desconhecido');
+        }
+        
     } catch (error) {
-        alert('❌ Erro: ' + error.message);
+        console.error('❌ Erro:', error);
+        showToast('❌ ' + error.message, 'error');
+    } finally {
+        if (button) {
+            button.disabled = false;
+            button.innerHTML = originalHTML || '🔄 Atualizar Tudo';
+        }
     }
 }
 
 // ========================================
-// REDIMENSIONAMENTO DE COLUNAS
+// TOAST
 // ========================================
-let isResizing = false;
-let currentResizeColumn = null;
-let startX = 0;
-let startWidth = 0;
-
-function initColumnResize() {
-    const headers = document.querySelectorAll('#tableHeader th');
+function showToast(message, type = 'success') {
+    // Remove toasts anteriores
+    document.querySelectorAll('.toast').forEach(t => t.remove());
     
-    headers.forEach((th, index) => {
-        const resizeHandle = document.createElement('div');
-        resizeHandle.className = 'resize-handle';
-        th.appendChild(resizeHandle);
-        
-        resizeHandle.addEventListener('mousedown', (e) => {
-            e.stopPropagation();
-            isResizing = true;
-            currentResizeColumn = index;
-            startX = e.pageX;
-            startWidth = th.offsetWidth;
-            
-            resizeHandle.classList.add('resizing');
-            document.body.style.cursor = 'col-resize';
-            document.body.style.userSelect = 'none';
-        });
-    });
+    const toast = document.createElement('div');
+    toast.className = 'toast ' + type;
+    toast.innerHTML = message;
+    document.body.appendChild(toast);
     
-    document.addEventListener('mousemove', (e) => {
-        if (!isResizing) return;
-        
-        const diff = e.pageX - startX;
-        const newWidth = Math.max(startWidth + diff, allColumns[selectedColumnsList[currentResizeColumn]].minWidth);
-        
-        const th = document.querySelectorAll('#tableHeader th')[currentResizeColumn];
-        th.style.width = newWidth + 'px';
-        
-        const columnKey = selectedColumnsList[currentResizeColumn];
-        const cells = document.querySelectorAll(`td[data-column="${columnKey}"]`);
-        cells.forEach(cell => {
-            cell.style.width = newWidth + 'px';
-        });
-        
-        columnWidths[columnKey] = newWidth;
-    });
-    
-    document.addEventListener('mouseup', () => {
-        if (isResizing) {
-            isResizing = false;
-            document.body.style.cursor = '';
-            document.body.style.userSelect = '';
-            
-            const handles = document.querySelectorAll('.resize-handle');
-            handles.forEach(h => h.classList.remove('resizing'));
-            
-            saveColumnWidths();
-        }
-    });
+    setTimeout(() => {
+        toast.style.opacity = '0';
+        setTimeout(() => toast.remove(), 300);
+    }, 3000);
 }
 
 // ========================================
-// DRAG AND DROP - HEADERS
+// FILTROS
 // ========================================
-let draggedHeaderIndex = null;
-
-function initDragDropHeaders() {
-    const headers = document.querySelectorAll('#tableHeader th');
+function filterTable() {
+    const searchInput = document.getElementById('searchInput');
+    const statusFilter = document.getElementById('statusFilter');
     
-    headers.forEach((header, index) => {
-        const existingHandle = header.querySelector('.resize-handle');
-        if (existingHandle) {
-            existingHandle.remove();
-        }
+    if (!searchInput || !statusFilter) return;
+    
+    const search = searchInput.value.toLowerCase().trim();
+    const status = statusFilter.value;
+    
+    const rows = document.querySelectorAll('#tableBody tr[data-name]');
+    
+    rows.forEach(row => {
+        const name = row.getAttribute('data-name') || '';
+        const rowStatus = row.getAttribute('data-status') || '';
         
-        const content = document.createElement('div');
-        content.className = 'th-content';
-        content.innerHTML = `
-            <span>${allColumns[selectedColumnsList[index]].label}</span>
-            <span class="th-drag-icon">☰</span>
-        `;
-        header.innerHTML = '';
-        header.appendChild(content);
+        const matchName = !search || name.includes(search);
+        const matchStatus = !status || rowStatus === status;
         
-        header.setAttribute('draggable', 'true');
-        
-        header.addEventListener('dragstart', (e) => {
-            if (isResizing) {
-                e.preventDefault();
-                return;
-            }
-            draggedHeaderIndex = index;
-            header.classList.add('dragging');
-            e.dataTransfer.effectAllowed = 'move';
-        });
-        
-        header.addEventListener('dragover', (e) => {
-            if (isResizing) return;
-            e.preventDefault();
-            e.dataTransfer.dropEffect = 'move';
-            header.classList.add('drag-over');
-        });
-        
-        header.addEventListener('dragleave', () => {
-            header.classList.remove('drag-over');
-        });
-        
-        header.addEventListener('drop', (e) => {
-            if (isResizing) return;
-            e.preventDefault();
-            header.classList.remove('drag-over');
-            
-            if (draggedHeaderIndex !== null && draggedHeaderIndex !== index) {
-                const draggedCol = selectedColumnsList[draggedHeaderIndex];
-                selectedColumnsList.splice(draggedHeaderIndex, 1);
-                selectedColumnsList.splice(index, 0, draggedCol);
-                
-                renderTable();
-                initDragDropHeaders();
-                initColumnResize();
-                
-                saveColumnsQuietly();
-            }
-        });
-        
-        header.addEventListener('dragend', () => {
-            header.classList.remove('dragging');
-            draggedHeaderIndex = null;
-        });
+        row.style.display = (matchName && matchStatus) ? '' : 'none';
     });
-    
-    initColumnResize();
+}
+
+function filterColumns() {
+    const search = document.getElementById('columnSearch').value.toLowerCase();
+    document.querySelectorAll('.column-option').forEach(opt => {
+        opt.style.display = opt.textContent.toLowerCase().includes(search) ? 'flex' : 'none';
+    });
 }
 
 // ========================================
@@ -375,6 +620,7 @@ function renderColumnsModal() {
     available.innerHTML = '';
     selected.innerHTML = '';
     
+    // Colunas disponíveis
     Object.keys(allColumns).forEach(key => {
         const div = document.createElement('div');
         div.className = 'column-option';
@@ -387,13 +633,48 @@ function renderColumnsModal() {
         available.appendChild(div);
     });
     
+    // Colunas selecionadas (drag & drop)
     selectedColumnsList.forEach(key => {
         const div = document.createElement('div');
         div.className = 'selected-column';
+        div.draggable = true;
+        div.setAttribute('data-column', key);
         div.innerHTML = `
             <span class="selected-column-name">☰ ${allColumns[key].label}</span>
             <span class="selected-column-remove" onclick="removeColumn('${key}')">✕</span>
         `;
+        
+        // Drag events para reordenar
+        div.addEventListener('dragstart', (e) => {
+            e.dataTransfer.effectAllowed = 'move';
+            div.classList.add('dragging');
+        });
+        
+        div.addEventListener('dragend', () => {
+            div.classList.remove('dragging');
+        });
+        
+        div.addEventListener('dragover', (e) => {
+            e.preventDefault();
+        });
+        
+        div.addEventListener('drop', (e) => {
+            e.preventDefault();
+            const dragging = selected.querySelector('.dragging');
+            if (dragging && dragging !== div) {
+                const dragKey = dragging.getAttribute('data-column');
+                const targetKey = div.getAttribute('data-column');
+                
+                const dragIndex = selectedColumnsList.indexOf(dragKey);
+                const targetIndex = selectedColumnsList.indexOf(targetKey);
+                
+                selectedColumnsList.splice(dragIndex, 1);
+                selectedColumnsList.splice(targetIndex, 0, dragKey);
+                
+                renderColumnsModal();
+            }
+        });
+        
         selected.appendChild(div);
     });
 }
@@ -429,114 +710,15 @@ async function saveColumns() {
         const result = await response.json();
         
         if (result.success) {
+            saveColumnsOrder();
             renderTable();
-            initDragDropHeaders();
-            initColumnResize();
             closeColumnsModal();
-            alert('✅ ' + result.message);
+            showToast('✅ ' + result.message, 'success');
         } else {
-            alert('❌ ' + result.message);
+            showToast('❌ ' + result.message, 'error');
         }
     } catch (error) {
-        alert('❌ Erro: ' + error.message);
-    }
-}
-
-async function saveColumnsQuietly() {
-    try {
-        await fetch('index.php?page=campanhas-save-columns', {
-            method: 'POST',
-            headers: { 
-                'Content-Type': 'application/json',
-                'X-Requested-With': 'XMLHttpRequest'
-            },
-            body: JSON.stringify({ columns: selectedColumnsList })
-        });
-    } catch (error) {
-        console.error('Erro ao salvar ordem:', error);
-    }
-}
-
-// ========================================
-// FILTROS
-// ========================================
-function filterTable() {
-    const searchInput = document.getElementById('searchInput');
-    const statusFilter = document.getElementById('statusFilter');
-    
-    if (!searchInput || !statusFilter) {
-        console.error('Elementos de filtro não encontrados');
-        return;
-    }
-    
-    const search = searchInput.value.toLowerCase().trim();
-    const status = statusFilter.value;
-    
-    const rows = document.querySelectorAll('#tableBody tr[data-name]');
-    let visibleCount = 0;
-    
-    rows.forEach(row => {
-        const name = row.getAttribute('data-name') || '';
-        const rowStatus = row.getAttribute('data-status') || '';
-        
-        const matchName = !search || name.includes(search);
-        const matchStatus = !status || rowStatus === status;
-        
-        if (matchName && matchStatus) {
-            row.style.display = '';
-            visibleCount++;
-        } else {
-            row.style.display = 'none';
-        }
-    });
-}
-
-function filterColumns() {
-    const search = document.getElementById('columnSearch').value.toLowerCase();
-    document.querySelectorAll('.column-option').forEach(opt => {
-        opt.style.display = opt.textContent.toLowerCase().includes(search) ? 'flex' : 'none';
-    });
-}
-
-// ========================================
-// SINCRONIZAÇÃO
-// ========================================
-async function syncAllCampaigns() {
-    if (!confirm('🔄 Sincronizar todas as campanhas do Meta Ads?')) return;
-    
-    const btn = event.target;
-    const originalHTML = btn.innerHTML;
-    btn.disabled = true;
-    btn.innerHTML = '<svg class="icon" style="width: 16px; height: 16px; animation: spin 1s linear infinite;" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none" stroke-dasharray="31.4" stroke-dashoffset="10"></circle></svg> Sincronizando...';
-    
-    try {
-        const response = await fetch('index.php?page=campanhas-sync-all', {
-            method: 'POST',
-            headers: { 
-                'Content-Type': 'application/x-www-form-urlencoded',
-                'X-Requested-With': 'XMLHttpRequest'
-            },
-            body: 'sync_all=1'
-        });
-        
-        if (!response.ok) {
-            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-        }
-        
-        const result = await response.json();
-        
-        if (result.success) {
-            alert(`✅ ${result.message}\n\nImportadas: ${result.imported || 0}\nAtualizadas: ${result.updated || 0}`);
-            setTimeout(() => window.location.reload(), 1000);
-        } else {
-            alert('❌ ' + result.message);
-        }
-    } catch (error) {
-        console.error('Erro na sincronização:', error);
-        alert('❌ Erro ao sincronizar: ' + error.message);
-    } finally {
-        btn.disabled = false;
-        btn.innerHTML = originalHTML;
+        showToast('❌ Erro: ' + error.message, 'error');
     }
 }
 
@@ -544,37 +726,29 @@ async function syncAllCampaigns() {
 // INICIALIZAÇÃO
 // ========================================
 document.addEventListener('DOMContentLoaded', () => {
-    console.log('DOM Carregado. Iniciando renderização...');
-    
-    const tbody = document.getElementById('tableBody');
-    const dataRows = tbody ? tbody.querySelectorAll('tr[data-id]') : [];
-    console.log('Linhas de dados encontradas:', dataRows.length);
+    console.log('🚀 Dashboard carregado');
+    console.log('📊 Total campanhas:', document.querySelectorAll('#tableBody tr[data-id]').length);
     
     loadColumnWidths();
+    loadColumnsOrder();
     renderTable();
     
-    // Só inicializa drag/resize se houver headers
-    setTimeout(() => {
-        const headers = document.querySelectorAll('#tableHeader th');
-        console.log('Headers criados:', headers.length);
-        
-        if (headers.length > 0) {
-            initDragDropHeaders();
-            initColumnResize();
-        }
-    }, 100);
+    const maxBtn = document.querySelector('[data-period="maximum"]');
+    if (maxBtn) {
+        maxBtn.classList.add('active');
+        currentPeriod = 'maximum';
+    }
 });
 
-// Event listener para fechar modal ao clicar fora
-document.getElementById('columnsModal')?.addEventListener('click', (e) => {
-    if (e.target.id === 'columnsModal') closeColumnsModal();
-});
-
-// Exporta funções globais necessárias
+// Exporta funções globais
+window.toggleCampaignStatus = toggleCampaignStatus;
 window.makeEditableName = makeEditableName;
 window.makeEditable = makeEditable;
 window.saveField = saveField;
-window.toggleStatus = toggleStatus;
+window.changePeriod = changePeriod;
+window.toggleCustomPeriod = toggleCustomPeriod;
+window.applyCustomPeriod = applyCustomPeriod;
+window.syncAllCampaigns = syncAllCampaigns;
 window.filterTable = filterTable;
 window.filterColumns = filterColumns;
 window.openColumnsModal = openColumnsModal;
@@ -582,4 +756,3 @@ window.closeColumnsModal = closeColumnsModal;
 window.toggleColumn = toggleColumn;
 window.removeColumn = removeColumn;
 window.saveColumns = saveColumns;
-window.syncAllCampaigns = syncAllCampaigns;

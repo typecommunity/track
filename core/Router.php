@@ -1,7 +1,13 @@
 <?php
 /**
- * UTMTrack - Sistema de Rotas COMPLETO
- * Versão 3.1 - Corrigido com todas as rotas necessárias
+ * UTMTrack - Sistema de Rotas COMPLETO E CORRIGIDO
+ * Versão 5.0 - Com Sincronização Bidirecional Meta Ads
+ * 
+ * Correções implementadas:
+ * - Adicionadas rotas para atualização de status no Meta Ads
+ * - Adicionadas rotas para atualização de orçamento no Meta Ads
+ * - Mantidos todos os métodos auxiliares úteis
+ * - Organização melhorada das rotas
  * 
  * Arquivo: core/Router.php
  */
@@ -85,13 +91,19 @@ class Router {
             'campanha-detalhes' => ['CampaignController', 'show'],
             'campanhas-export' => ['CampaignController', 'export'],
             
-            // 🔥 ROTAS CRÍTICAS QUE FALTAVAM - CAMPANHAS
-            'campanhas-sync' => ['CampaignController', $method === 'GET' ? 'sync' : 'syncAll'], // POST usa syncAll
+            // 🔥 ROTAS DE SINCRONIZAÇÃO - CAMPANHAS
+            'campanhas-sync' => ['CampaignController', $method === 'GET' ? 'sync' : 'syncAll'],
             'campanhas-sync-all' => ['CampaignController', 'syncAll'],
+            
+            // 🔥 ROTAS DE EDIÇÃO LOCAL - CAMPANHAS
             'campanhas-save-columns' => ['CampaignController', 'saveColumns'],
             'campanhas-update-field' => ['CampaignController', 'updateField'],
             'campanhas-bulk-action' => ['CampaignController', 'bulkAction'],
             'campanhas-duplicate' => ['CampaignController', 'duplicate'],
+            
+            // 🔥 NOVAS ROTAS - SINCRONIZAÇÃO BIDIRECIONAL META ADS (CAMPANHAS)
+            'campanhas-update-meta-status' => ['CampaignController', 'updateMetaStatus'],
+            'campanhas-update-meta-budget' => ['CampaignController', 'updateMetaBudget'],
             
             // ========================================
             // CONJUNTOS DE ANÚNCIOS (AD SETS)
@@ -101,11 +113,17 @@ class Router {
             'conjunto-detalhes' => ['AdSetController', 'show'],
             'conjuntos-export' => ['AdSetController', 'export'],
             
-            // 🔥 ROTAS CRÍTICAS QUE FALTAVAM - CONJUNTOS
+            // 🔥 ROTAS DE SINCRONIZAÇÃO - CONJUNTOS
             'conjuntos-sync' => ['AdSetController', $method === 'GET' ? 'sync' : 'syncAll'],
             'conjuntos-sync-all' => ['AdSetController', 'syncAll'],
+            
+            // 🔥 ROTAS DE EDIÇÃO LOCAL - CONJUNTOS
             'conjuntos-save-columns' => ['AdSetController', 'saveColumns'],
             'conjuntos-update-field' => ['AdSetController', 'updateField'],
+            
+            // 🔥 NOVAS ROTAS - SINCRONIZAÇÃO BIDIRECIONAL META ADS (CONJUNTOS)
+            'conjuntos-update-meta-status' => ['AdSetController', 'updateMetaStatus'],
+            'conjuntos-update-meta-budget' => ['AdSetController', 'updateMetaBudget'],
             
             // ========================================
             // ANÚNCIOS (ADS)
@@ -116,11 +134,16 @@ class Router {
             'anuncio-preview' => ['AdController', 'preview'],
             'anuncios-export' => ['AdController', 'export'],
             
-            // 🔥 ROTAS CRÍTICAS QUE FALTAVAM - ANÚNCIOS
+            // 🔥 ROTAS DE SINCRONIZAÇÃO - ANÚNCIOS
             'anuncios-sync' => ['AdController', $method === 'GET' ? 'sync' : 'syncAll'],
             'anuncios-sync-all' => ['AdController', 'syncAll'],
+            
+            // 🔥 ROTAS DE EDIÇÃO LOCAL - ANÚNCIOS
             'anuncios-save-columns' => ['AdController', 'saveColumns'],
             'anuncios-update-field' => ['AdController', 'updateField'],
+            
+            // 🔥 NOVAS ROTAS - SINCRONIZAÇÃO BIDIRECIONAL META ADS (ANÚNCIOS)
+            'anuncios-update-meta-status' => ['AdController', 'updateMetaStatus'],
             
             // ========================================
             // META ADS (Legacy - Compatibilidade)
@@ -285,6 +308,18 @@ class Router {
                 return call_user_func([$controller, 'sync']);
             }
             
+            // Se o método não existe mas é um método de Meta Ads novo, avisa
+            if (in_array($methodName, ['updateMetaStatus', 'updateMetaBudget'])) {
+                if ($this->isAjax()) {
+                    header('Content-Type: application/json');
+                    echo json_encode([
+                        'success' => false,
+                        'message' => "O método {$methodName} ainda não foi implementado no {$controllerName}. Por favor, adicione este método ao controller."
+                    ]);
+                    exit;
+                }
+            }
+            
             if ($this->isAjax()) {
                 header('Content-Type: application/json');
                 echo json_encode([
@@ -372,16 +407,32 @@ class Router {
             exit;
         }
         
-        // Senão, exibe erro HTML
+        // Senão, exibe erro HTML moderno
         echo "<!DOCTYPE html>";
-        echo "<html><head><title>Erro 500</title>";
-        echo "<style>body{font-family:Arial;padding:40px;background:#f5f5f5;}";
-        echo ".error{background:white;padding:30px;border-radius:10px;box-shadow:0 2px 10px rgba(0,0,0,0.1);}";
-        echo "h1{color:#e74c3c;}a{color:#3498db;text-decoration:none;}</style></head>";
-        echo "<body><div class='error'>";
-        echo "<h1>Erro 500</h1>";
-        echo "<p>{$message}</p>";
-        echo "<p><a href='index.php?page=dashboard'>← Voltar ao Dashboard</a></p>";
+        echo "<html lang='pt-BR'><head><meta charset='UTF-8'>";
+        echo "<meta name='viewport' content='width=device-width, initial-scale=1.0'>";
+        echo "<title>Erro 500 - UTMTrack</title>";
+        echo "<style>";
+        echo "* { margin: 0; padding: 0; box-sizing: border-box; }";
+        echo "body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; ";
+        echo "background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh; ";
+        echo "display: flex; align-items: center; justify-content: center; color: white; padding: 20px; }";
+        echo ".error-container { text-align: center; max-width: 600px; background: rgba(255,255,255,0.1); ";
+        echo "padding: 40px; border-radius: 20px; backdrop-filter: blur(10px); box-shadow: 0 8px 32px rgba(0,0,0,0.3); }";
+        echo "h1 { font-size: 80px; font-weight: 900; margin-bottom: 20px; text-shadow: 2px 2px 4px rgba(0,0,0,0.3); }";
+        echo "h2 { font-size: 28px; margin-bottom: 20px; font-weight: 600; }";
+        echo ".message { font-size: 16px; margin-bottom: 30px; opacity: 0.9; line-height: 1.6; }";
+        echo "a { display: inline-block; padding: 15px 40px; background: white; color: #667eea; ";
+        echo "text-decoration: none; border-radius: 30px; font-weight: 600; transition: all 0.3s; }";
+        echo "a:hover { transform: translateY(-2px); box-shadow: 0 10px 20px rgba(0,0,0,0.2); }";
+        echo ".emoji { font-size: 60px; margin-bottom: 20px; }";
+        echo "</style></head><body>";
+        echo "<div class='error-container'>";
+        echo "<div class='emoji'>⚠️</div>";
+        echo "<h1>500</h1>";
+        echo "<h2>Erro Interno do Servidor</h2>";
+        echo "<p class='message'>{$message}</p>";
+        echo "<a href='index.php?page=dashboard'>← Voltar ao Dashboard</a>";
         echo "</div></body></html>";
         exit;
     }
@@ -402,17 +453,30 @@ class Router {
             exit;
         }
         
-        // Senão, exibe 404 HTML
+        // Senão, exibe 404 HTML moderno
         echo "<!DOCTYPE html>";
-        echo "<html><head><title>404 - Página não encontrada</title>";
-        echo "<style>body{font-family:Arial;padding:40px;background:#f5f5f5;}";
-        echo ".error{background:white;padding:30px;border-radius:10px;box-shadow:0 2px 10px rgba(0,0,0,0.1);text-align:center;}";
-        echo "h1{color:#e67e22;font-size:72px;margin:0;}h2{color:#7f8c8d;}";
-        echo "a{display:inline-block;margin-top:20px;padding:10px 20px;background:#3498db;color:white;text-decoration:none;border-radius:5px;}</style></head>";
-        echo "<body><div class='error'>";
+        echo "<html lang='pt-BR'><head><meta charset='UTF-8'>";
+        echo "<meta name='viewport' content='width=device-width, initial-scale=1.0'>";
+        echo "<title>404 - Página não encontrada</title>";
+        echo "<style>";
+        echo "* { margin: 0; padding: 0; box-sizing: border-box; }";
+        echo "body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; ";
+        echo "background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh; ";
+        echo "display: flex; align-items: center; justify-content: center; color: white; padding: 20px; }";
+        echo ".error-container { text-align: center; max-width: 600px; background: rgba(255,255,255,0.1); ";
+        echo "padding: 40px; border-radius: 20px; backdrop-filter: blur(10px); box-shadow: 0 8px 32px rgba(0,0,0,0.3); }";
+        echo "h1 { font-size: 120px; font-weight: 900; margin-bottom: 20px; text-shadow: 2px 2px 4px rgba(0,0,0,0.3); }";
+        echo "h2 { font-size: 32px; margin-bottom: 20px; font-weight: 600; }";
+        echo "p { font-size: 18px; margin-bottom: 30px; opacity: 0.9; }";
+        echo "a { display: inline-block; padding: 15px 40px; background: white; color: #667eea; ";
+        echo "text-decoration: none; border-radius: 30px; font-weight: 600; transition: all 0.3s; }";
+        echo "a:hover { transform: translateY(-2px); box-shadow: 0 10px 20px rgba(0,0,0,0.2); }";
+        echo "</style></head><body>";
+        echo "<div class='error-container'>";
         echo "<h1>404</h1>";
         echo "<h2>Página não encontrada</h2>";
-        echo "<a href='index.php?page=dashboard'>Voltar ao Dashboard</a>";
+        echo "<p>A página que você está procurando não existe ou foi movida.</p>";
+        echo "<a href='index.php?page=dashboard'>← Voltar ao Dashboard</a>";
         echo "</div></body></html>";
         exit;
     }

@@ -1,7 +1,7 @@
 /**
  * UTMTrack - Estilos do Dashboard de Campanhas
  * Arquivo: assets/css/campaigns-dashboard.css
- * Versão: 5.0
+ * Versão: 10.0 FINAL - Toggle Verde Minimalista
  */
 
 /* ========================================
@@ -379,7 +379,7 @@ body {
 }
 
 /* ========================================
-   STATUS BADGES
+   STATUS BADGES (Legacy - não usado com toggle)
 ======================================== */
 .status-badge {
     display: inline-flex;
@@ -408,6 +408,100 @@ body {
 }
 
 /* ========================================
+   🔥 TOGGLE SWITCH MINIMALISTA (VERDE)
+======================================== */
+
+.status-with-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.toggle-switch {
+    position: relative;
+    display: inline-block;
+    width: 48px;
+    height: 24px;
+}
+
+.toggle-switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+    position: absolute;
+}
+
+.toggle-slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: #475569;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    border-radius: 34px;
+    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.toggle-slider:before {
+    position: absolute;
+    content: "";
+    height: 18px;
+    width: 18px;
+    left: 3px;
+    bottom: 3px;
+    background-color: #ffffff;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    border-radius: 50%;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+/* Estado ATIVO (checked) - VERDE */
+.toggle-switch input:checked + .toggle-slider {
+    background-color: #10b981;
+    box-shadow: inset 0 2px 4px rgba(16, 185, 129, 0.3);
+}
+
+.toggle-switch input:checked + .toggle-slider:before {
+    transform: translateX(24px);
+}
+
+/* Hover effect */
+.toggle-slider:hover {
+    opacity: 0.95;
+}
+
+/* Disabled state */
+.toggle-switch input:disabled + .toggle-slider {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.toggle-switch input:disabled + .toggle-slider:before {
+    box-shadow: none;
+}
+
+/* Loading animation quando disabled */
+.toggle-switch input:disabled + .toggle-slider:before {
+    animation: togglePulse 1.5s ease-in-out infinite;
+}
+
+@keyframes togglePulse {
+    0%, 100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.6;
+    }
+}
+
+/* REMOVE O TEXTO - apenas toggle */
+.status-label {
+    display: none !important;
+}
+
+/* ========================================
    METRICS COLORS
 ======================================== */
 .metric-positive { 
@@ -421,7 +515,8 @@ body {
 }
 
 .metric-neutral { 
-    color: var(--text-secondary); 
+    color: #ffffff;
+    font-weight: 600;
 }
 
 /* Saving Indicator */
@@ -648,6 +743,118 @@ body {
 @keyframes spin {
     0% { transform: rotate(0deg); }
     100% { transform: rotate(360deg); }
+}
+
+@keyframes rotate {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+.icon.rotating {
+    animation: rotate 1s linear infinite;
+}
+
+/* ========================================
+   TOAST NOTIFICATIONS
+======================================== */
+.toast {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    background: #10b981;
+    color: white;
+    padding: 15px 25px;
+    border-radius: 8px;
+    z-index: 9999;
+    font-weight: 600;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    animation: slideInRight 0.3s ease;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    max-width: 400px;
+}
+
+.toast::before {
+    content: '✓';
+    font-size: 20px;
+    font-weight: bold;
+}
+
+.toast.error {
+    background: #ef4444;
+}
+
+.toast.error::before {
+    content: '✗';
+}
+
+.toast.warning {
+    background: #f59e0b;
+}
+
+.toast.warning::before {
+    content: '⚠';
+}
+
+.toast.info {
+    background: #3b82f6;
+}
+
+.toast.info::before {
+    content: 'ℹ';
+}
+
+@keyframes slideInRight {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+/* ========================================
+   PERÍODO TABS
+======================================== */
+.period-tab {
+    padding: 8px 16px;
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 6px;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all 0.2s;
+    font-size: 13px;
+    font-weight: 500;
+    display: inline-flex;
+    align-items: center;
+    white-space: nowrap;
+}
+
+.period-tab:hover {
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    border-color: var(--border);
+}
+
+.period-tab.active {
+    background: var(--accent);
+    color: white;
+    border-color: var(--accent);
+    font-weight: 600;
+}
+
+.custom-date-range {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    padding: 12px 16px;
+    background: var(--bg-secondary);
+    border-radius: 8px;
+    border: 1px solid var(--border);
 }
 
 /* ========================================

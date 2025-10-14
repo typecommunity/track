@@ -1,10 +1,62 @@
 <!-- 
-    UTMTrack - Dashboard de Campanhas PROFISSIONAL
-    Versão 5.0 - Completo e Corrigido
-    Arquivo: app/views/campaigns/index.php
+    ========================================
+    CAMINHO: /utmtrack/app/views/campaigns/index.php
+    ========================================
+    
+    UTMTrack - Dashboard de Campanhas
+    Versão 11.0 FINAL - Toggle Verde + Edição Nome + Colunas Funcionais
 -->
 
 <?php
+// PROCESSA REQUISIÇÕES AJAX DIRETAMENTE
+if (isset($_GET['ajax_action'])) {
+    header('Content-Type: application/json');
+    
+    if (!isset($_SESSION['user_id'])) {
+        http_response_code(401);
+        echo json_encode(['success' => false, 'message' => 'Não autorizado']);
+        exit;
+    }
+    
+    require_once dirname(__DIR__, 2) . '/core/Database.php';
+    require_once dirname(__DIR__, 2) . '/core/Controller.php';
+    require_once dirname(__DIR__, 2) . '/core/Auth.php';
+    require_once dirname(__DIR__, 2) . '/core/Config.php';
+    require_once dirname(__DIR__) . '/controllers/CampaignController.php';
+    
+    $controller = new CampaignController();
+    
+    switch ($_GET['ajax_action']) {
+        case 'sync_all':
+            $_SERVER['REQUEST_METHOD'] = 'POST';
+            $controller->syncAll();
+            exit;
+            
+        case 'update_status':
+            $_SERVER['REQUEST_METHOD'] = 'POST';
+            $controller->updateMetaStatus();
+            exit;
+            
+        case 'update_budget':
+            $_SERVER['REQUEST_METHOD'] = 'POST';
+            $controller->updateMetaBudget();
+            exit;
+            
+        case 'update_field':
+            $_SERVER['REQUEST_METHOD'] = 'POST';
+            $controller->updateField();
+            exit;
+            
+        case 'save_columns':
+            $_SERVER['REQUEST_METHOD'] = 'POST';
+            $controller->saveColumns();
+            exit;
+    }
+    
+    echo json_encode(['success' => false, 'message' => 'Ação não reconhecida']);
+    exit;
+}
+
 // Garante que as variáveis estejam definidas
 if (!isset($campaigns)) $campaigns = [];
 if (!isset($stats)) $stats = [];
@@ -29,7 +81,7 @@ $stats = array_merge([
     'avg_roi' => 0
 ], $stats);
 
-// CORREÇÃO: Recalcula estatísticas baseado nas campanhas existentes
+// Recalcula estatísticas
 if (is_array($campaigns) && count($campaigns) > 0) {
     $stats['total_campaigns'] = count($campaigns);
     $stats['active_campaigns'] = 0;
@@ -42,12 +94,10 @@ if (is_array($campaigns) && count($campaigns) > 0) {
     $stats['total_conversions'] = 0;
     
     foreach ($campaigns as $campaign) {
-        // Conta campanhas ativas
         if (isset($campaign['status']) && $campaign['status'] === 'active') {
             $stats['active_campaigns']++;
         }
         
-        // Soma totais
         $stats['total_spent'] += floatval($campaign['spent'] ?? 0);
         $stats['total_revenue'] += floatval($campaign['real_revenue'] ?? 0);
         $stats['total_profit'] += floatval($campaign['real_profit'] ?? 0);
@@ -57,7 +107,6 @@ if (is_array($campaigns) && count($campaigns) > 0) {
         $stats['total_conversions'] += intval($campaign['conversions'] ?? 0);
     }
     
-    // Calcula médias
     if ($stats['total_spent'] > 0) {
         $stats['avg_roas'] = $stats['total_revenue'] / $stats['total_spent'];
         $stats['avg_roi'] = (($stats['total_revenue'] - $stats['total_spent']) / $stats['total_spent']) * 100;
@@ -70,17 +119,13 @@ if (is_array($campaigns) && count($campaigns) > 0) {
     }
 }
 
-// Define colunas visíveis (usa configuração do usuário ou padrão)
+// Define colunas visíveis
 $visibleColumns = $userColumns ?? ['nome', 'status', 'orcamento', 'vendas', 'cpa', 'gastos', 'faturamento', 'lucro', 'roas', 'margem', 'roi'];
 
-// Determina o caminho base correto para os assets
-$projectRoot = 'https://ataweb.com.br/utmtrack';
-
 // Paths dos assets
-$cssPath = $projectRoot . '/assets/css/campaigns-dashboard.css?v=5.0';
-$jsPath = $projectRoot . '/assets/js/campaigns-dashboard.js?v=5.0';
-
-// DEBUG MODE - altere para true se precisar debugar
+$projectRoot = 'https://ataweb.com.br/utmtrack';
+$cssPath = $projectRoot . '/assets/css/campaigns-dashboard.css?v=11.0';
+$jsPath = $projectRoot . '/assets/js/campaigns-dashboard.js?v=11.0';
 $debugMode = false;
 ?>
 
@@ -91,47 +136,13 @@ $debugMode = false;
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>UTMTrack - Dashboard de Campanhas</title>
     
-    <?php if ($debugMode): ?>
-    <!-- DEBUG INFO -->
-    <div style="background: #ff0000; color: white; padding: 10px; font-family: monospace; font-size: 12px; position: fixed; top: 0; left: 0; right: 0; z-index: 9999;">
-        <strong>DEBUG MODE ATIVO</strong><br>
-        Total Campanhas Array: <?= count($campaigns) ?><br>
-        Total Campanhas Stats: <?= $stats['total_campaigns'] ?><br>
-        Campanhas Ativas: <?= $stats['active_campaigns'] ?><br>
-        CSS Path: <?= $cssPath ?><br>
-        JS Path: <?= $jsPath ?>
-    </div>
-    <?php endif; ?>
-    
-    <!-- CSS EXTERNO -->
     <link rel="stylesheet" href="<?= $cssPath ?>">
     
-    <!-- CSS de Fallback + Correção da Borda -->
-    <style>
-        /* Remove bordas brancas */
-        .table-wrapper { 
-            border: none !important;
-            background: var(--bg-secondary);
-            border-radius: 12px;
-            overflow: hidden;
-        }
-        .table-container {
-            border: none !important;
-        }
-        .campaigns-table {
-            border: none !important;
-        }
-        .campaigns-table th,
-        .campaigns-table td {
-            border-color: #334155 !important;
-        }
-    </style>
-    
-    <!-- Passa configuração para o JavaScript -->
     <script>
         window.userColumnsConfig = <?= json_encode($visibleColumns) ?>;
         window.debugMode = <?= $debugMode ? 'true' : 'false' ?>;
         window.baseUrl = '<?= $projectRoot ?>';
+        window.currentPage = '<?= $_SERVER['REQUEST_URI'] ?>';
     </script>
 </head>
 <body>
@@ -203,6 +214,68 @@ $debugMode = false;
     </div>
 </div>
 
+<!-- BARRA DE PERÍODO -->
+<div style="background: var(--bg-primary); border-bottom: 1px solid var(--border); padding: 15px 30px;">
+    <div style="display: flex; align-items: center; gap: 15px;">
+        <div style="display: flex; align-items: center; gap: 8px;">
+            <svg style="width: 16px; height: 16px; color: var(--text-secondary);" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                <line x1="16" y1="2" x2="16" y2="6"></line>
+                <line x1="8" y1="2" x2="8" y2="6"></line>
+                <line x1="3" y1="10" x2="21" y2="10"></line>
+            </svg>
+            <span style="font-size: 12px; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px;">
+                Período dos Dados
+            </span>
+        </div>
+        
+        <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+            <button class="period-tab" data-period="today" onclick="changePeriod('today', this)">
+                Hoje
+            </button>
+            <button class="period-tab" data-period="yesterday" onclick="changePeriod('yesterday', this)">
+                Ontem
+            </button>
+            <button class="period-tab" data-period="last_7d" onclick="changePeriod('last_7d', this)">
+                Últimos 7 dias
+            </button>
+            <button class="period-tab" data-period="last_30d" onclick="changePeriod('last_30d', this)">
+                Últimos 30 dias
+            </button>
+            <button class="period-tab" data-period="this_month" onclick="changePeriod('this_month', this)">
+                Este mês
+            </button>
+            <button class="period-tab" data-period="last_month" onclick="changePeriod('last_month', this)">
+                Mês passado
+            </button>
+            <button class="period-tab active" data-period="maximum" onclick="changePeriod('maximum', this)">
+                Máximo
+            </button>
+            <button class="period-tab" data-period="custom" onclick="toggleCustomPeriod(this)">
+                <svg style="width: 14px; height: 14px; margin-right: 4px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                    <line x1="16" y1="2" x2="16" y2="6"></line>
+                    <line x1="8" y1="2" x2="8" y2="6"></line>
+                    <line x1="3" y1="10" x2="21" y2="10"></line>
+                </svg>
+                Personalizado
+            </button>
+        </div>
+    </div>
+    
+    <!-- Período personalizado -->
+    <div class="custom-date-range" id="customDateRange" style="margin-top: 12px; display: none;">
+        <input type="date" id="startDate" value="<?= date('Y-m-d', strtotime('-30 days')) ?>" 
+               style="padding: 8px 12px; background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 6px; color: var(--text-primary); font-size: 13px;">
+        <span style="color: var(--text-secondary); font-size: 13px;">até</span>
+        <input type="date" id="endDate" value="<?= date('Y-m-d') ?>" 
+               style="padding: 8px 12px; background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 6px; color: var(--text-primary); font-size: 13px;">
+        <button class="btn btn-primary" style="padding: 8px 20px; font-size: 13px;" onclick="applyCustomPeriod()">
+            Aplicar
+        </button>
+    </div>
+</div>
+
 <!-- FILTROS -->
 <div class="filters-bar">
     <input 
@@ -219,13 +292,6 @@ $debugMode = false;
         <option value="paused">Desativadas</option>
     </select>
     
-    <select class="filter-select" id="periodFilter">
-        <option>Hoje</option>
-        <option>Últimos 7 dias</option>
-        <option selected>Últimos 30 dias</option>
-        <option>Este mês</option>
-    </select>
-    
     <button onclick="openColumnsModal()" class="btn btn-secondary" style="padding: 10px 16px;">
         <svg class="icon" style="width: 16px; height: 16px;" viewBox="0 0 24 24">
             <line x1="4" y1="21" x2="4" y2="14"></line>
@@ -234,15 +300,12 @@ $debugMode = false;
             <line x1="12" y1="8" x2="12" y2="3"></line>
             <line x1="20" y1="21" x2="20" y2="16"></line>
             <line x1="20" y1="12" x2="20" y2="3"></line>
-            <line x1="1" y1="14" x2="7" y2="14"></line>
-            <line x1="9" y1="8" x2="15" y2="8"></line>
-            <line x1="17" y1="16" x2="23" y2="16"></line>
         </svg>
         Personalizar Colunas
     </button>
 </div>
 
-<!-- TABELA COM SCROLL HORIZONTAL -->
+<!-- TABELA -->
 <div class="table-wrapper">
     <div class="table-container" id="tableContainer">
         <table class="campaigns-table" id="campaignsTable">
@@ -269,7 +332,6 @@ $debugMode = false;
                 <?php else: ?>
                     <?php foreach ($campaigns as $c): ?>
                     <?php 
-                        // Garante que todos os campos existam
                         $c = array_merge([
                             'id' => 0,
                             'campaign_id' => '',
@@ -302,6 +364,7 @@ $debugMode = false;
                         data-status="<?= $c['status'] ?>"
                         data-account-id="<?= $c['ad_account_id'] ?? '' ?>"
                     >
+                        <!-- NOME -->
                         <td data-column="nome">
                             <div class="campaign-name-cell" 
                                  onclick="makeEditableName(this, <?= $c['id'] ?>)"
@@ -311,13 +374,22 @@ $debugMode = false;
                             <div class="campaign-id">ID: <?= htmlspecialchars($c['campaign_id']) ?></div>
                         </td>
                         
+                        <!-- TOGGLE SWITCH VERDE MINIMALISTA -->
                         <td data-column="status">
-                            <span class="status-badge <?= $c['status'] ?>" 
-                                  onclick="toggleStatus(this, <?= $c['id'] ?>, '<?= htmlspecialchars($c['campaign_id']) ?>')">
-                                <?= $c['status'] === 'active' ? '✓ Ativada' : '⏸ Desativada' ?>
-                            </span>
+                            <div class="status-with-toggle">
+                                <label class="toggle-switch">
+                                    <input 
+                                        type="checkbox" 
+                                        <?= $c['status'] === 'active' ? 'checked' : '' ?>
+                                        onchange="toggleCampaignStatus(this, <?= $c['id'] ?>, '<?= htmlspecialchars($c['campaign_id']) ?>')"
+                                        title="<?= $c['status'] === 'active' ? 'Clique para pausar' : 'Clique para ativar' ?>"
+                                    >
+                                    <span class="toggle-slider"></span>
+                                </label>
+                            </div>
                         </td>
                         
+                        <!-- ORÇAMENTO -->
                         <td data-column="orcamento">
                             <div class="editable-field" 
                                  onclick="makeEditable(this, <?= $c['id'] ?>, 'budget', 'currency', '<?= htmlspecialchars($c['campaign_id']) ?>')"
@@ -326,37 +398,45 @@ $debugMode = false;
                             </div>
                         </td>
                         
+                        <!-- VENDAS -->
                         <td data-column="vendas"><?= number_format($c['real_sales'], 0, ',', '.') ?></td>
                         
+                        <!-- CPA -->
                         <td data-column="cpa" class="<?= $c['live_cpa'] > 0 ? '' : 'metric-neutral' ?>">
                             R$ <?= number_format($c['live_cpa'], 2, ',', '.') ?>
                         </td>
                         
+                        <!-- GASTOS -->
                         <td data-column="gastos">
                             <strong>R$ <?= number_format($c['spent'], 2, ',', '.') ?></strong>
                         </td>
                         
+                        <!-- FATURAMENTO -->
                         <td data-column="faturamento" class="<?= $c['real_revenue'] > 0 ? 'metric-positive' : 'metric-neutral' ?>">
                             R$ <?= number_format($c['real_revenue'], 2, ',', '.') ?>
                         </td>
                         
+                        <!-- LUCRO -->
                         <td data-column="lucro" class="<?= $c['real_profit'] > 0 ? 'metric-positive' : ($c['real_profit'] < 0 ? 'metric-negative' : 'metric-neutral') ?>">
                             R$ <?= number_format($c['real_profit'], 2, ',', '.') ?>
                         </td>
                         
+                        <!-- ROAS -->
                         <td data-column="roas" class="<?= $c['live_roas'] >= 2 ? 'metric-positive' : ($c['live_roas'] >= 1 ? '' : 'metric-negative') ?>">
                             <?= number_format($c['live_roas'], 2, ',', '.') ?>x
                         </td>
                         
+                        <!-- MARGEM -->
                         <td data-column="margem" class="<?= $c['live_margin'] > 0 ? 'metric-positive' : 'metric-neutral' ?>">
                             <?= number_format($c['live_margin'], 2, ',', '.') ?>%
                         </td>
                         
+                        <!-- ROI -->
                         <td data-column="roi" class="<?= $c['live_roi'] > 0 ? 'metric-positive' : ($c['live_roi'] < 0 ? 'metric-negative' : 'metric-neutral') ?>">
                             <?= number_format($c['live_roi'], 2, ',', '.') ?>%
                         </td>
                         
-                        <!-- Colunas extras (ocultas por padrão) -->
+                        <!-- COLUNAS EXTRAS -->
                         <td data-column="ic"><?= number_format($c['initiate_checkout'], 0, ',', '.') ?></td>
                         <td data-column="cpi">R$ <?= $c['initiate_checkout'] > 0 ? number_format($c['spent'] / $c['initiate_checkout'], 2, ',', '.') : '0,00' ?></td>
                         <td data-column="cpc">R$ <?= number_format($c['cpc'] ?? 0, 2, ',', '.') ?></td>
@@ -375,12 +455,12 @@ $debugMode = false;
     </div>
 </div>
 
-<!-- MODAL PERSONALIZAÇÃO DE COLUNAS -->
+<!-- MODAL COLUNAS -->
 <div class="modal-overlay" id="columnsModal">
     <div class="columns-modal">
         <div class="columns-modal-header">
             <div class="columns-modal-title">
-                <svg class="icon" style="width: 20px; height: 20px; display: inline-block; vertical-align: middle;" viewBox="0 0 24 24">
+                <svg class="icon" style="width: 20px; height: 20px;" viewBox="0 0 24 24">
                     <line x1="4" y1="21" x2="4" y2="14"></line>
                     <line x1="4" y1="10" x2="4" y2="3"></line>
                     <line x1="12" y1="21" x2="12" y2="12"></line>
@@ -388,7 +468,7 @@ $debugMode = false;
                     <line x1="20" y1="21" x2="20" y2="16"></line>
                     <line x1="20" y1="12" x2="20" y2="3"></line>
                 </svg>
-                Personalizar as colunas
+                Personalizar Colunas
             </div>
             <div class="columns-modal-subtitle">Escolha e organize as colunas (arraste para reordenar)</div>
         </div>
@@ -425,154 +505,8 @@ $debugMode = false;
     </div>
 </div>
 
-<!-- JAVASCRIPT EXTERNO -->
+<!-- JAVASCRIPT EXTERNO (TODAS AS FUNÇÕES ESTÃO AQUI) -->
 <script src="<?= $jsPath ?>"></script>
-
-<!-- Script de Sincronização com Meta Ads -->
-<script>
-// Sobrescreve a função toggleStatus para sincronizar com Meta Ads
-async function toggleStatus(element, campaignId, metaCampaignId) {
-    const currentStatus = element.closest('tr').getAttribute('data-status');
-    const newStatus = currentStatus === 'active' ? 'paused' : 'active';
-    
-    element.innerHTML = '<span style="font-size: 11px;">⏳ Atualizando...</span>';
-    
-    try {
-        const response = await fetch('index.php?page=campanhas-update-meta-status', {
-            method: 'POST',
-            headers: { 
-                'Content-Type': 'application/json',
-                'X-Requested-With': 'XMLHttpRequest'
-            },
-            body: JSON.stringify({
-                campaign_id: campaignId,
-                meta_campaign_id: metaCampaignId,
-                status: newStatus
-            })
-        });
-        
-        const result = await response.json();
-        
-        if (result.success) {
-            element.className = 'status-badge ' + newStatus;
-            element.innerHTML = newStatus === 'active' ? '✓ Ativada' : '⏸ Desativada';
-            element.closest('tr').setAttribute('data-status', newStatus);
-            
-            // Mostra mensagem se Meta foi atualizado
-            if (result.meta_updated) {
-                element.style.background = 'rgba(16, 185, 129, 0.3)';
-                const toast = document.createElement('div');
-                toast.style.cssText = 'position:fixed;top:20px;right:20px;background:#10b981;color:white;padding:12px 20px;border-radius:8px;z-index:9999;';
-                toast.innerHTML = '✅ Campanha atualizada no Meta Ads!';
-                document.body.appendChild(toast);
-                setTimeout(() => toast.remove(), 3000);
-            }
-        } else {
-            throw new Error(result.message || 'Erro ao atualizar');
-        }
-    } catch (error) {
-        alert('❌ Erro: ' + error.message);
-        // Restaura botão original
-        element.className = 'status-badge ' + currentStatus;
-        element.innerHTML = currentStatus === 'active' ? '✓ Ativada' : '⏸ Desativada';
-    }
-}
-
-// Sobrescreve função para atualizar orçamento no Meta
-function makeEditable(element, campaignId, field, type = 'text', metaCampaignId = '') {
-    if (element.classList.contains('editing')) return;
-    
-    const currentValue = element.getAttribute('data-value');
-    element.classList.add('editing');
-    element.innerHTML = `<input type="${type === 'currency' ? 'number' : 'text'}" 
-                                value="${currentValue}" 
-                                step="0.01"
-                                onblur="saveFieldWithMeta(this, ${campaignId}, '${field}', '${type}', '${metaCampaignId}')"
-                                onkeypress="if(event.key==='Enter') this.blur()">`;
-    element.querySelector('input').focus();
-    element.querySelector('input').select();
-}
-
-async function saveFieldWithMeta(input, campaignId, field, type, metaCampaignId) {
-    const newValue = input.value;
-    const parent = input.parentElement;
-    
-    parent.innerHTML = '<span class="saving-indicator">💾 Salvando...</span>';
-    
-    try {
-        const endpoint = field === 'budget' && metaCampaignId 
-            ? 'index.php?page=campanhas-update-meta-budget' 
-            : 'index.php?page=campanhas-update-field';
-            
-        const response = await fetch(endpoint, {
-            method: 'POST',
-            headers: { 
-                'Content-Type': 'application/json',
-                'X-Requested-With': 'XMLHttpRequest'
-            },
-            body: JSON.stringify({
-                campaign_id: campaignId,
-                meta_campaign_id: metaCampaignId,
-                field: field,
-                value: newValue
-            })
-        });
-        
-        const result = await response.json();
-        
-        if (result.success) {
-            parent.classList.remove('editing');
-            parent.setAttribute('data-value', newValue);
-            
-            if (type === 'currency') {
-                parent.innerHTML = 'R$ ' + parseFloat(newValue).toLocaleString('pt-BR', {
-                    minimumFractionDigits: 2,
-                    maximumFractionDigits: 2
-                });
-            } else {
-                parent.innerHTML = newValue;
-            }
-            
-            // Feedback visual
-            parent.style.background = 'rgba(16, 185, 129, 0.2)';
-            setTimeout(() => {
-                parent.style.background = '';
-            }, 1000);
-            
-            if (result.meta_updated) {
-                const toast = document.createElement('div');
-                toast.style.cssText = 'position:fixed;top:20px;right:20px;background:#10b981;color:white;padding:12px 20px;border-radius:8px;z-index:9999;';
-                toast.innerHTML = '✅ Orçamento atualizado no Meta Ads!';
-                document.body.appendChild(toast);
-                setTimeout(() => toast.remove(), 3000);
-            }
-        } else {
-            throw new Error(result.message);
-        }
-    } catch (error) {
-        alert('❌ Erro ao salvar: ' + error.message);
-        parent.classList.remove('editing');
-        parent.setAttribute('onclick', `makeEditable(this, ${campaignId}, '${field}', '${type}', '${metaCampaignId}')`);
-        
-        if (type === 'currency') {
-            parent.innerHTML = 'R$ ' + parseFloat(parent.getAttribute('data-value')).toLocaleString('pt-BR', {
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2
-            });
-        } else {
-            parent.innerHTML = parent.getAttribute('data-value');
-        }
-    }
-}
-
-// Debug no console
-if (window.debugMode) {
-    console.log('🔍 Debug Info:');
-    console.log('Total Campanhas:', <?= $stats['total_campaigns'] ?>);
-    console.log('Campanhas Ativas:', <?= $stats['active_campaigns'] ?>);
-    console.log('Integração Meta Ads: Ativa ✅');
-}
-</script>
 
 </body>
 </html>
