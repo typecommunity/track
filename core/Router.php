@@ -80,6 +80,7 @@ class Router {
             // DASHBOARD
             // ========================================
             'dashboard' => ['DashboardController', 'index'],
+            'dashboard-debug' => ['DashboardController', 'debug'],
             'resumo' => ['DashboardController', 'index'],
             
             // ========================================

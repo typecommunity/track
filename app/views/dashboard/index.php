@@ -1,5 +1,5 @@
 <style>
-/* Dashboard Styles */
+/* Dashboard Inline Styles */
 .dashboard-filters {
     background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
     border: 1px solid #334155;
@@ -70,7 +70,23 @@
     box-shadow: 0 6px 16px rgba(102, 126, 234, 0.5);
 }
 
-/* Metrics Grid */
+.debug-btn {
+    padding: 12px 24px;
+    background: #ef4444;
+    border: none;
+    border-radius: 10px;
+    color: white;
+    font-weight: 600;
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.debug-btn:hover {
+    background: #dc2626;
+    transform: translateY(-2px);
+}
+
 .metrics-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
@@ -164,27 +180,6 @@
     gap: 6px;
 }
 
-.metric-trend {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    padding: 4px 8px;
-    border-radius: 6px;
-    font-size: 12px;
-    font-weight: 600;
-}
-
-.metric-trend.up {
-    background: rgba(16, 185, 129, 0.1);
-    color: #10b981;
-}
-
-.metric-trend.down {
-    background: rgba(239, 68, 68, 0.1);
-    color: #ef4444;
-}
-
-/* Tables Card */
 .data-card {
     background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
     border: 1px solid #334155;
@@ -293,7 +288,6 @@
     color: #94a3b8;
 }
 
-/* Empty State */
 .empty-state {
     text-align: center;
     padding: 60px 30px;
@@ -324,7 +318,50 @@
     line-height: 1.6;
 }
 
-/* Responsivo */
+.alert-warning {
+    background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
+    border-radius: 16px;
+    padding: 20px;
+    margin-bottom: 30px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    border: 1px solid rgba(251, 191, 36, 0.3);
+}
+
+.alert-icon {
+    font-size: 32px;
+}
+
+.alert-content {
+    flex: 1;
+}
+
+.alert-title {
+    color: #1e293b;
+    margin: 0 0 8px 0;
+    font-weight: 700;
+    font-size: 16px;
+}
+
+.alert-text {
+    color: #374151;
+    margin: 0;
+    font-size: 14px;
+    line-height: 1.6;
+}
+
+.platform-badge {
+    background: rgba(102, 126, 234, 0.1);
+    color: #667eea;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    display: inline-block;
+}
+
 @media (max-width: 768px) {
     .filters-form {
         grid-template-columns: 1fr;
@@ -334,10 +371,9 @@
         grid-template-columns: 1fr;
     }
     
-    .data-card-header {
+    .alert-warning {
         flex-direction: column;
-        align-items: flex-start;
-        gap: 16px;
+        text-align: center;
     }
 }
 </style>
@@ -347,6 +383,7 @@
     <form method="GET" action="" class="filters-form">
         <input type="hidden" name="page" value="dashboard">
         
+        <!-- Período -->
         <div class="filter-group">
             <label class="filter-label">
                 <svg style="width: 14px; height: 14px; display: inline; vertical-align: middle;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -362,9 +399,11 @@
                 <option value="yesterday" <?= ($metrics['period'] ?? '') === 'yesterday' ? 'selected' : '' ?>>Ontem</option>
                 <option value="week" <?= ($metrics['period'] ?? '') === 'week' ? 'selected' : '' ?>>Últimos 7 dias</option>
                 <option value="month" <?= ($metrics['period'] ?? '') === 'month' ? 'selected' : '' ?>>Este mês</option>
+                <option value="maximum" <?= ($metrics['period'] ?? '') === 'maximum' ? 'selected' : '' ?>>Máximo (todos os dados)</option>
             </select>
         </div>
         
+        <!-- Conta de Anúncio -->
         <div class="filter-group">
             <label class="filter-label">
                 <svg style="width: 14px; height: 14px; display: inline; vertical-align: middle;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -374,9 +413,17 @@
             </label>
             <select name="account" class="filter-select">
                 <option value="">Todas as contas</option>
+                <?php if (!empty($filterOptions['accounts'])): ?>
+                    <?php foreach ($filterOptions['accounts'] as $account): ?>
+                        <option value="<?= $account['id'] ?>" <?= ($metrics['account'] ?? '') == $account['id'] ? 'selected' : '' ?>>
+                            <?= htmlspecialchars($account['account_name']) ?>
+                        </option>
+                    <?php endforeach; ?>
+                <?php endif; ?>
             </select>
         </div>
         
+        <!-- Fonte -->
         <div class="filter-group">
             <label class="filter-label">
                 <svg style="width: 14px; height: 14px; display: inline; vertical-align: middle;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -387,9 +434,17 @@
             </label>
             <select name="source" class="filter-select">
                 <option value="">Todas as fontes</option>
+                <?php if (!empty($filterOptions['sources'])): ?>
+                    <?php foreach ($filterOptions['sources'] as $source): ?>
+                        <option value="<?= htmlspecialchars($source['utm_source']) ?>" <?= ($metrics['source'] ?? '') == $source['utm_source'] ? 'selected' : '' ?>>
+                            <?= htmlspecialchars($source['utm_source']) ?>
+                        </option>
+                    <?php endforeach; ?>
+                <?php endif; ?>
             </select>
         </div>
         
+        <!-- Plataforma -->
         <div class="filter-group">
             <label class="filter-label">
                 <svg style="width: 14px; height: 14px; display: inline; vertical-align: middle;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -400,9 +455,26 @@
             </label>
             <select name="platform" class="filter-select">
                 <option value="">Todas</option>
+                <?php if (!empty($filterOptions['platforms'])): ?>
+                    <?php foreach ($filterOptions['platforms'] as $platform): ?>
+                        <?php
+                        $platformLabels = [
+                            'meta' => 'Meta Ads',
+                            'google' => 'Google Ads',
+                            'tiktok' => 'TikTok Ads',
+                            'kwai' => 'Kwai Ads'
+                        ];
+                        $label = $platformLabels[$platform['platform']] ?? ucfirst($platform['platform']);
+                        ?>
+                        <option value="<?= $platform['platform'] ?>" <?= ($metrics['platform'] ?? '') == $platform['platform'] ? 'selected' : '' ?>>
+                            <?= $label ?>
+                        </option>
+                    <?php endforeach; ?>
+                <?php endif; ?>
             </select>
         </div>
         
+        <!-- Produto -->
         <div class="filter-group">
             <label class="filter-label">
                 <svg style="width: 14px; height: 14px; display: inline; vertical-align: middle;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -412,6 +484,13 @@
             </label>
             <select name="product" class="filter-select">
                 <option value="">Todos os produtos</option>
+                <?php if (!empty($filterOptions['products'])): ?>
+                    <?php foreach ($filterOptions['products'] as $product): ?>
+                        <option value="<?= $product['id'] ?>" <?= ($metrics['product'] ?? '') == $product['id'] ? 'selected' : '' ?>>
+                            <?= htmlspecialchars($product['name']) ?>
+                        </option>
+                    <?php endforeach; ?>
+                <?php endif; ?>
             </select>
         </div>
         
@@ -421,8 +500,32 @@
             </svg>
             Atualizar
         </button>
+        
+        <!-- Botão Debug - Descomente para usar -->
+        <!--
+        <button type="button" onclick="window.location.href='?page=dashboard&period=<?= $metrics['period'] ?? 'today' ?>&debug=1'" class="debug-btn">
+            🔍 Debug
+        </button>
+        -->
     </form>
 </div>
+
+<!-- Alerta se usando dados do Meta - Descomente para usar -->
+<!--
+<?php if (!empty($metrics['usando_meta'])): ?>
+<div class="alert-warning">
+    <div class="alert-icon">⚠️</div>
+    <div class="alert-content">
+        <h4 class="alert-title">Usando dados do Meta Ads</h4>
+        <p class="alert-text">
+            Não foram encontradas vendas registradas no sistema para este período. As métricas exibidas são baseadas nas <strong>conversões reportadas pelo Meta Ads</strong> (<?= number_format($metrics['conversions_meta'], 0, ',', '.') ?> conversões, R$ <?= number_format($metrics['net_revenue'], 2, ',', '.') ?>).
+            <br><br>
+            💡 <strong>Dica:</strong> Configure webhooks para registrar vendas automaticamente e ter dados mais precisos. <a href="?page=help&action=webhooks" style="color: #1e293b; text-decoration: underline; font-weight: 600;">Ver como configurar →</a>
+        </p>
+    </div>
+</div>
+<?php endif; ?>
+-->
 
 <!-- Métricas Principais -->
 <div class="metrics-grid">
@@ -436,7 +539,7 @@
                 </svg>
                 Faturamento
             </div>
-            <svg class="info-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" title="Receita total menos custos e taxas">
+            <svg class="info-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" title="<?= !empty($metrics['usando_meta']) ? 'Valor de conversões do Meta Ads' : 'Receita total menos custos e taxas' ?>">
                 <circle cx="12" cy="12" r="10"></circle>
                 <path d="M12 16v-4M12 8h.01"></path>
             </svg>
@@ -449,7 +552,7 @@
                 <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
                 <circle cx="8.5" cy="7" r="4"></circle>
             </svg>
-            <?= $metrics['total_sales'] ?> vendas aprovadas
+            <?= $metrics['total_sales'] ?> <?= !empty($metrics['usando_meta']) ? 'conversões' : 'vendas aprovadas' ?>
         </div>
     </div>
     
@@ -466,7 +569,7 @@
         <div class="metric-value">
             R$ <?= number_format($metrics['ad_spend'], 2, ',', '.') ?>
         </div>
-        <div class="metric-info">Com anúncios</div>
+        <div class="metric-info"><?= $metrics['total_campaigns'] ?? 0 ?> campanha<?= ($metrics['total_campaigns'] ?? 0) != 1 ? 's' : '' ?> ativa<?= ($metrics['total_campaigns'] ?? 0) != 1 ? 's' : '' ?></div>
     </div>
     
     <!-- ROAS -->
@@ -548,7 +651,82 @@
         <div class="metric-info">Margem de lucro</div>
     </div>
     
-    <!-- Vendas Pendentes -->
+    <!-- Impressões -->
+    <div class="metric-card">
+        <div class="metric-header">
+            <div class="metric-label">
+                <svg class="metric-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                    <circle cx="12" cy="12" r="3"></circle>
+                </svg>
+                Impressões
+            </div>
+        </div>
+        <div class="metric-value" style="font-size: 28px;">
+            <?= number_format($metrics['impressions'] ?? 0, 0, ',', '.') ?>
+        </div>
+        <div class="metric-info">Visualizações dos anúncios</div>
+    </div>
+    
+    <!-- Cliques -->
+    <div class="metric-card">
+        <div class="metric-header">
+            <div class="metric-label">
+                <svg class="metric-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M9 3v18m0 0l-7-7m7 7l7-7"></path>
+                </svg>
+                Cliques
+            </div>
+        </div>
+        <div class="metric-value" style="font-size: 28px;">
+            <?= number_format($metrics['clicks'] ?? 0, 0, ',', '.') ?>
+        </div>
+        <div class="metric-info">CTR: <?= number_format($metrics['ctr'] ?? 0, 2, ',', '.') ?>%</div>
+    </div>
+    
+    <!-- CPC -->
+    <div class="metric-card">
+        <div class="metric-header">
+            <div class="metric-label">
+                <svg class="metric-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <path d="M12 6v6l4 2"></path>
+                </svg>
+                CPC
+            </div>
+            <svg class="info-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" title="Custo Por Clique">
+                <circle cx="12" cy="12" r="10"></circle>
+                <path d="M12 16v-4M12 8h.01"></path>
+            </svg>
+        </div>
+        <div class="metric-value">
+            R$ <?= number_format($metrics['cpc'] ?? 0, 2, ',', '.') ?>
+        </div>
+        <div class="metric-info">Custo por clique</div>
+    </div>
+    
+    <!-- Checkouts (se houver) -->
+    <?php if (!empty($metrics['checkouts_meta']) && $metrics['checkouts_meta'] > 0): ?>
+    <div class="metric-card">
+        <div class="metric-header">
+            <div class="metric-label">
+                <svg class="metric-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path>
+                    <line x1="3" y1="6" x2="21" y2="6"></line>
+                    <path d="M16 10a4 4 0 0 1-8 0"></path>
+                </svg>
+                Checkouts
+            </div>
+        </div>
+        <div class="metric-value" style="color: #fbbf24;">
+            <?= number_format($metrics['checkouts_meta'], 0, ',', '.') ?>
+        </div>
+        <div class="metric-info">Iniciaram compra (Meta)</div>
+    </div>
+    <?php endif; ?>
+    
+    <!-- Vendas Pendentes (só se houver vendas reais) -->
+    <?php if (empty($metrics['usando_meta']) && !empty($metrics['pending_sales']) && $metrics['pending_sales'] > 0): ?>
     <div class="metric-card">
         <div class="metric-header">
             <div class="metric-label">
@@ -564,8 +742,10 @@
         </div>
         <div class="metric-info">Aguardando aprovação</div>
     </div>
+    <?php endif; ?>
     
-    <!-- Reembolsos -->
+    <!-- Reembolsos (só se houver vendas reais) -->
+    <?php if (empty($metrics['usando_meta']) && !empty($metrics['refunded_sales']) && $metrics['refunded_sales'] > 0): ?>
     <div class="metric-card">
         <div class="metric-header">
             <div class="metric-label">
@@ -581,8 +761,10 @@
         </div>
         <div class="metric-info">Vendas reembolsadas</div>
     </div>
+    <?php endif; ?>
     
-    <!-- Impostos -->
+    <!-- Impostos (só se houver) -->
+    <?php if (empty($metrics['usando_meta']) && !empty($metrics['tax']) && $metrics['tax'] > 0): ?>
     <div class="metric-card">
         <div class="metric-header">
             <div class="metric-label">
@@ -597,8 +779,10 @@
         </div>
         <div class="metric-info">Taxas e impostos</div>
     </div>
+    <?php endif; ?>
     
-    <!-- Custos -->
+    <!-- Custos (só se houver) -->
+    <?php if (empty($metrics['usando_meta']) && !empty($metrics['cost']) && $metrics['cost'] > 0): ?>
     <div class="metric-card">
         <div class="metric-header">
             <div class="metric-label">
@@ -613,7 +797,66 @@
         </div>
         <div class="metric-info">Custo dos produtos</div>
     </div>
+    <?php endif; ?>
 </div>
+
+<!-- Top Campanhas -->
+<?php if (!empty($topCampaigns) && count($topCampaigns) > 0): ?>
+<div class="data-card">
+    <div class="data-card-header">
+        <h2 class="data-card-title">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="18" y1="20" x2="18" y2="10"></line>
+                <line x1="12" y1="20" x2="12" y2="4"></line>
+                <line x1="6" y1="20" x2="6" y2="14"></line>
+            </svg>
+            Top Campanhas por Investimento
+        </h2>
+    </div>
+    
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>Campanha</th>
+                <th>Plataforma</th>
+                <th>Investido</th>
+                <th>Impressões</th>
+                <th>Cliques</th>
+                <th>Conversões</th>
+                <th>Receita</th>
+                <th>ROAS</th>
+            </tr>
+        </thead>
+        <tbody>
+            <?php foreach ($topCampaigns as $campaign): ?>
+            <tr>
+                <td style="font-weight: 600; max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" 
+                    title="<?= htmlspecialchars($campaign['campaign_name']) ?>">
+                    <?= htmlspecialchars($campaign['campaign_name']) ?>
+                </td>
+                <td>
+                    <span class="platform-badge">
+                        <?= $campaign['platform'] === 'meta' ? 'Meta Ads' : ucfirst($campaign['platform']) ?>
+                    </span>
+                </td>
+                <td style="font-weight: 600;">R$ <?= number_format($campaign['spent'], 2, ',', '.') ?></td>
+                <td><?= number_format($campaign['impressions'] ?? 0, 0, ',', '.') ?></td>
+                <td><?= number_format($campaign['clicks'] ?? 0, 0, ',', '.') ?></td>
+                <td><?= number_format($campaign['conversions'] ?? 0, 0, ',', '.') ?></td>
+                <td style="font-weight: 700; color: #10b981;">
+                    R$ <?= number_format($campaign['real_revenue'] > 0 ? $campaign['real_revenue'] : ($campaign['purchase_value'] ?? 0), 2, ',', '.') ?>
+                </td>
+                <td>
+                    <span style="font-weight: 700; color: <?= $campaign['roas'] >= 3 ? '#10b981' : ($campaign['roas'] >= 1.5 ? '#fbbf24' : '#ef4444') ?>">
+                        <?= $campaign['roas'] > 0 ? number_format($campaign['roas'], 2, ',', '.') . 'x' : '-' ?>
+                    </span>
+                </td>
+            </tr>
+            <?php endforeach; ?>
+        </tbody>
+    </table>
+</div>
+<?php endif; ?>
 
 <!-- Vendas por Pagamento -->
 <div class="data-card">
@@ -636,7 +879,13 @@
             </svg>
         </div>
         <div class="empty-state-title">Nenhuma venda ainda</div>
-        <p class="empty-state-text">Suas vendas aparecerão aqui quando forem registradas</p>
+        <p class="empty-state-text">
+            <?php if (!empty($metrics['usando_meta'])): ?>
+                Configure webhooks para começar a registrar vendas automaticamente
+            <?php else: ?>
+                Suas vendas aparecerão aqui quando forem registradas
+            <?php endif; ?>
+        </p>
     </div>
     <?php else: ?>
     <table class="data-table">
@@ -697,7 +946,13 @@
             </svg>
         </div>
         <div class="empty-state-title">Nenhum produto vendido</div>
-        <p class="empty-state-text">Configure seus produtos para começar a rastrear vendas</p>
+        <p class="empty-state-text">
+            <?php if (!empty($metrics['usando_meta'])): ?>
+                Configure webhooks para começar a registrar vendas por produto
+            <?php else: ?>
+                Configure seus produtos para começar a rastrear vendas
+            <?php endif; ?>
+        </p>
     </div>
     <?php else: ?>
     <table class="data-table">
