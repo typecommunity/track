@@ -1,10 +1,15 @@
 <?php
 /**
- * UTMTrack - Controller de Anúncios (Ads)
- * Gerencia visualização e sincronização de Anúncios do Meta Ads
+ * ========================================
+ * CAMINHO: /utmtrack/app/controllers/AdController.php
+ * ========================================
  * 
- * Arquivo: app/controllers/AdController.php
- * @version 2.0
+ * UTMTrack - Ad Controller COMPLETO
+ * Gerencia Anúncios com Sync Meta Ads
+ * 
+ * @version 11.0 FINAL CORRIGIDO
+ * @tested 2025-10-14
+ * @author UTMTrack Development Team
  */
 
 class AdController extends Controller {
@@ -15,48 +20,72 @@ class AdController extends Controller {
     }
     
     /**
-     * Lista todos os anúncios do usuário
+     * Dashboard principal de anúncios
      */
     public function index() {
         $userId = $this->auth->id();
         
-        // Busca anúncios com métricas
+        // Busca anúncios do banco com todas as métricas
         $ads = $this->db->fetchAll("
             SELECT 
                 a.*,
-                ads.adset_name,
+                ads_set.adset_name,
+                ads_set.adset_id as adset_meta_id,
                 c.campaign_name,
+                c.campaign_id as campaign_meta_id,
                 aa.account_name,
-                aa.last_sync as account_last_sync,
+                aa.platform,
                 
-                -- Métricas calculadas
-                CASE WHEN a.impressions > 0 THEN ROUND((a.clicks / a.impressions) * 100, 2) ELSE 0 END as calculated_ctr,
-                CASE WHEN a.clicks > 0 THEN ROUND(a.spent / a.clicks, 2) ELSE 0 END as calculated_cpc,
-                CASE WHEN a.impressions > 0 THEN ROUND((a.spent / a.impressions) * 1000, 2) ELSE 0 END as calculated_cpm,
-                CASE WHEN a.conversions > 0 THEN ROUND(a.spent / a.conversions, 2) ELSE 0 END as calculated_cpa
-                
+                -- Vendas reais do sistema
+                COALESCE((SELECT COUNT(*) FROM sales s 
+                          WHERE s.ad_id = a.id AND s.status = 'approved'), 0) as real_sales,
+                COALESCE((SELECT SUM(amount) FROM sales s 
+                          WHERE s.ad_id = a.id AND s.status = 'approved'), 0) as real_revenue,
+                COALESCE((SELECT SUM(s.amount - COALESCE(s.product_cost, 0)) FROM sales s 
+                          WHERE s.ad_id = a.id AND s.status = 'approved'), 0) as real_profit
             FROM ads a
-            LEFT JOIN adsets ads ON ads.id = a.adset_id
+            LEFT JOIN adsets ads_set ON ads_set.id = a.adset_id
             LEFT JOIN campaigns c ON c.id = a.campaign_id
-            LEFT JOIN ad_accounts aa ON c.ad_account_id = aa.id
+            LEFT JOIN ad_accounts aa ON aa.id = c.ad_account_id
             WHERE a.user_id = :user_id
-            ORDER BY a.spent DESC, a.ad_name
-            LIMIT 1000
+            ORDER BY a.last_sync DESC, a.spent DESC
+            LIMIT 500
         ", ['user_id' => $userId]);
         
-        // Calcula tempo desde última sync
+        $ads = is_array($ads) ? $ads : [];
+        
+        // Calcula métricas derivadas
         foreach ($ads as &$ad) {
-            if ($ad['last_sync']) {
-                $lastSync = new DateTime($ad['last_sync']);
-                $now = new DateTime();
-                $diff = $now->diff($lastSync);
-                
+            $spent = floatval($ad['spent'] ?? 0);
+            $revenue = floatval($ad['real_revenue'] ?? 0);
+            $profit = floatval($ad['real_profit'] ?? 0);
+            $sales = intval($ad['real_sales'] ?? 0);
+            
+            $ad['live_roas'] = ($spent > 0 && $revenue > 0) ? round($revenue / $spent, 2) : 0;
+            $ad['live_roi'] = ($spent > 0 && $profit > 0) ? round(($profit / $spent) * 100, 2) : 0;
+            $ad['live_margin'] = ($revenue > 0) ? round(($profit / $revenue) * 100, 2) : 0;
+            $ad['live_cpa'] = ($sales > 0) ? round($spent / $sales, 2) : 0;
+            
+            // Calcula métricas se não vieram da API
+            if (empty($ad['ctr']) && $ad['impressions'] > 0) {
+                $ad['ctr'] = round(($ad['clicks'] / $ad['impressions']) * 100, 2);
+            }
+            if (empty($ad['cpc']) && $ad['clicks'] > 0) {
+                $ad['cpc'] = round($spent / $ad['clicks'], 2);
+            }
+            if (empty($ad['cpm']) && $ad['impressions'] > 0) {
+                $ad['cpm'] = round(($spent / $ad['impressions']) * 1000, 2);
+            }
+            
+            // Tempo desde última sync
+            if (!empty($ad['last_sync'])) {
+                $diff = (new DateTime())->diff(new DateTime($ad['last_sync']));
                 if ($diff->days > 0) {
                     $ad['sync_time'] = $diff->days . ' dia' . ($diff->days > 1 ? 's' : '');
                 } elseif ($diff->h > 0) {
-                    $ad['sync_time'] = $diff->h . ' hora' . ($diff->h > 1 ? 's' : '');
+                    $ad['sync_time'] = $diff->h . 'h';
                 } elseif ($diff->i > 0) {
-                    $ad['sync_time'] = $diff->i . ' minuto' . ($diff->i > 1 ? 's' : '');
+                    $ad['sync_time'] = $diff->i . 'min';
                 } else {
                     $ad['sync_time'] = 'agora';
                 }
@@ -65,23 +94,40 @@ class AdController extends Controller {
             }
         }
         
-        // Estatísticas
-        $stats = $this->db->fetch("
-            SELECT 
-                COUNT(*) as total_ads,
-                SUM(CASE WHEN status = 'active' THEN 1 ELSE 0 END) as active_ads,
-                COALESCE(SUM(spent), 0) as total_spent,
-                COALESCE(SUM(impressions), 0) as total_impressions,
-                COALESCE(SUM(clicks), 0) as total_clicks,
-                COALESCE(SUM(conversions), 0) as total_conversions,
-                COALESCE(AVG(ctr), 0) as avg_ctr,
-                COALESCE(AVG(cpc), 0) as avg_cpc,
-                COALESCE(AVG(cpm), 0) as avg_cpm
-            FROM ads
-            WHERE user_id = :user_id
-        ", ['user_id' => $userId]);
+        // Estatísticas agregadas
+        $stats = [
+            'total_ads' => count($ads),
+            'active_ads' => 0,
+            'total_spent' => 0,
+            'total_impressions' => 0,
+            'total_clicks' => 0,
+            'total_conversions' => 0,
+            'total_sales' => 0,
+            'total_revenue' => 0,
+            'total_profit' => 0,
+        ];
         
-        // Busca configuração de colunas
+        foreach ($ads as $a) {
+            if ($a['status'] === 'active') $stats['active_ads']++;
+            $stats['total_spent'] += floatval($a['spent'] ?? 0);
+            $stats['total_impressions'] += intval($a['impressions'] ?? 0);
+            $stats['total_clicks'] += intval($a['clicks'] ?? 0);
+            $stats['total_conversions'] += intval($a['conversions'] ?? 0);
+            $stats['total_sales'] += intval($a['real_sales'] ?? 0);
+            $stats['total_revenue'] += floatval($a['real_revenue'] ?? 0);
+            $stats['total_profit'] += floatval($a['real_profit'] ?? 0);
+        }
+        
+        $stats['ctr'] = ($stats['total_impressions'] > 0) 
+            ? round(($stats['total_clicks'] / $stats['total_impressions']) * 100, 2) : 0;
+        $stats['avg_cpc'] = ($stats['total_clicks'] > 0) 
+            ? round($stats['total_spent'] / $stats['total_clicks'], 2) : 0;
+        $stats['avg_roas'] = ($stats['total_spent'] > 0) 
+            ? round($stats['total_revenue'] / $stats['total_spent'], 2) : 0;
+        $stats['avg_roi'] = ($stats['total_spent'] > 0) 
+            ? round(($stats['total_profit'] / $stats['total_spent']) * 100, 2) : 0;
+        
+        // Configuração de colunas do usuário
         $userColumns = null;
         try {
             $userColumnsData = $this->db->fetch("
@@ -94,14 +140,15 @@ class AdController extends Controller {
                 $userColumns = json_decode($userColumnsData['columns_config'], true);
             }
         } catch (Exception $e) {
-            // Tabela ainda não existe
+            // Tabela não existe ainda
         }
         
-        $this->render('campaigns/ads', [
+        // Renderiza a view
+        $this->render('ads/index', [
             'config' => $this->config,
             'user' => $this->auth->user(),
-            'ads' => $ads ?? [],
-            'stats' => $stats ?? [],
+            'ads' => $ads,
+            'stats' => $stats,
             'userColumns' => $userColumns,
             'pageTitle' => 'Anúncios'
         ]);
@@ -118,7 +165,7 @@ class AdController extends Controller {
         
         $userId = $this->auth->id();
         
-        // Busca todas as contas ativas
+        // Busca contas ativas
         $accounts = $this->db->fetchAll("
             SELECT * FROM ad_accounts 
             WHERE user_id = :user_id 
@@ -128,102 +175,79 @@ class AdController extends Controller {
         ", ['user_id' => $userId]);
         
         if (empty($accounts)) {
-            $this->json([
-                'success' => false,
-                'message' => 'Nenhuma conta ativa encontrada'
-            ], 404);
+            $this->json(['success' => false, 'message' => 'Nenhuma conta ativa'], 404);
             return;
         }
         
         $totalImported = 0;
         $totalUpdated = 0;
-        $accountsSynced = 0;
-        $errors = [];
+        $totalErrors = 0;
         
         foreach ($accounts as $account) {
             try {
-                // Busca ads com insights
-                $ads = $this->fetchMetaAdsWithInsights(
-                    $account['account_id'],
+                $ads = $this->fetchAdsFromMeta(
+                    $account['account_id'], 
                     $account['access_token']
                 );
                 
-                if (empty($ads)) {
-                    continue;
-                }
-                
-                $accountsSynced++;
+                if (empty($ads)) continue;
                 
                 foreach ($ads as $ad) {
-                    // Busca campanha relacionada
-                    $campaign = $this->db->fetch("
-                        SELECT id FROM campaigns 
-                        WHERE campaign_id = :campaign_id AND user_id = :user_id
-                    ", [
-                        'campaign_id' => $ad['campaign_id'],
-                        'user_id' => $userId
-                    ]);
-                    
-                    if (!$campaign) continue;
-                    
-                    // Busca adset se existir
-                    $adset = null;
-                    if (!empty($ad['adset_id'])) {
-                        $adset = $this->db->fetch("
-                            SELECT id FROM adsets 
-                            WHERE adset_id = :adset_id
-                        ", ['adset_id' => $ad['adset_id']]);
-                    }
-                    
-                    // Verifica se já existe
-                    $exists = $this->db->fetch("
-                        SELECT id FROM ads 
-                        WHERE ad_id = :ad_id
-                    ", ['ad_id' => $ad['id']]);
-                    
-                    // Prepara dados
-                    $data = [
-                        'ad_name' => $ad['name'] ?? 'Sem nome',
-                        'status' => $this->mapStatus($ad['status'] ?? 'PAUSED'),
-                        'creative_id' => $ad['creative']['id'] ?? null,
-                        'spent' => floatval($ad['spend'] ?? 0),
-                        'impressions' => intval($ad['impressions'] ?? 0),
-                        'clicks' => intval($ad['clicks'] ?? 0),
-                        'reach' => intval($ad['reach'] ?? 0),
-                        'frequency' => floatval($ad['frequency'] ?? 0),
-                        'ctr' => floatval($ad['ctr'] ?? 0),
-                        'cpc' => floatval($ad['cpc'] ?? 0),
-                        'cpm' => floatval($ad['cpm'] ?? 0),
-                        'conversions' => intval($ad['conversions'] ?? 0),
-                        'preview_url' => $ad['preview_shareable_link'] ?? null,
-                        'last_sync' => date('Y-m-d H:i:s')
-                    ];
-                    
-                    if ($exists) {
-                        $this->db->update('ads', $data, 'id = :id', ['id' => $exists['id']]);
-                        $totalUpdated++;
-                    } else {
-                        $data['user_id'] = $userId;
-                        $data['campaign_id'] = $campaign['id'];
-                        $data['adset_id'] = $adset ? $adset['id'] : null;
-                        $data['ad_id'] = $ad['id'];
-                        $this->db->insert('ads', $data);
-                        $totalImported++;
+                    try {
+                        // Busca campanha relacionada
+                        $campaign = $this->db->fetch("
+                            SELECT id FROM campaigns 
+                            WHERE campaign_id = :campaign_id AND user_id = :user_id
+                        ", [
+                            'campaign_id' => $ad['campaign_id'],
+                            'user_id' => $userId
+                        ]);
+                        
+                        if (!$campaign) continue;
+                        
+                        // Busca ad set relacionado (se existir)
+                        $adset = null;
+                        if (!empty($ad['adset_id'])) {
+                            $adset = $this->db->fetch("
+                                SELECT id FROM adsets 
+                                WHERE adset_id = :adset_id
+                            ", ['adset_id' => $ad['adset_id']]);
+                        }
+                        
+                        // Verifica se já existe
+                        $exists = $this->db->fetch("
+                            SELECT id FROM ads 
+                            WHERE ad_id = :ad_id
+                        ", ['ad_id' => $ad['id']]);
+                        
+                        $data = $this->prepareAdData($ad, $campaign['id'], $adset ? $adset['id'] : null);
+                        
+                        if ($exists) {
+                            $this->db->update('ads', $data, 'id = :id', ['id' => $exists['id']]);
+                            $totalUpdated++;
+                        } else {
+                            $data['user_id'] = $userId;
+                            $data['ad_id'] = $ad['id'];
+                            $this->db->insert('ads', $data);
+                            $totalImported++;
+                        }
+                    } catch (Exception $e) {
+                        $totalErrors++;
+                        error_log("Erro ad {$ad['id']}: " . $e->getMessage());
                     }
                 }
                 
-                usleep(500000); // 500ms delay
+                usleep(500000);
                 
             } catch (Exception $e) {
-                $errors[] = "Erro na conta {$account['account_name']}: " . $e->getMessage();
-                error_log("Erro ao sincronizar ads: " . $e->getMessage());
+                $totalErrors++;
+                error_log("Erro conta {$account['id']}: " . $e->getMessage());
             }
         }
         
-        $message = "✅ Sincronização concluída! {$accountsSynced} conta(s), {$totalImported} novo(s), {$totalUpdated} atualizado(s)";
-        
-        if (!empty($errors)) {
-            $message .= " ⚠️ Alguns erros: " . implode(', ', array_slice($errors, 0, 2));
+        $message = "✅ {$totalImported} novo(s), {$totalUpdated} atualizado(s)";
+        if ($totalErrors > 0) {
+            $message .= " ⚠️ {$totalErrors} erro(s)";
         }
         
         $this->json([
@@ -231,155 +255,34 @@ class AdController extends Controller {
             'message' => $message,
             'imported' => $totalImported,
             'updated' => $totalUpdated,
-            'accounts_synced' => $accountsSynced,
-            'errors' => $errors
+            'errors' => $totalErrors
         ]);
     }
     
     /**
-     * Sincroniza ads de uma conta específica
+     * Atualiza status no Meta Ads
      */
-    public function sync() {
+    public function updateMetaStatus() {
         if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
             $this->json(['success' => false, 'message' => 'Método inválido'], 405);
             return;
         }
         
         $userId = $this->auth->id();
-        $accountId = $this->post('account_id');
-        
-        if (empty($accountId)) {
-            // Se não tem account_id, sincroniza tudo
-            return $this->syncAll();
-        }
-        
-        $account = $this->db->fetch("
-            SELECT * FROM ad_accounts 
-            WHERE id = :id AND user_id = :user_id AND platform = 'meta'
-        ", [
-            'id' => $accountId,
-            'user_id' => $userId
-        ]);
-        
-        if (!$account || empty($account['access_token'])) {
-            $this->json(['success' => false, 'message' => 'Conta ou token inválido'], 400);
-            return;
-        }
-        
-        try {
-            $ads = $this->fetchMetaAdsWithInsights(
-                $account['account_id'],
-                $account['access_token']
-            );
-            
-            if (empty($ads)) {
-                $this->json([
-                    'success' => true,
-                    'message' => 'Nenhum anúncio encontrado',
-                    'imported' => 0,
-                    'updated' => 0
-                ]);
-                return;
-            }
-            
-            $imported = 0;
-            $updated = 0;
-            
-            foreach ($ads as $ad) {
-                $campaign = $this->db->fetch("
-                    SELECT id FROM campaigns 
-                    WHERE campaign_id = :campaign_id AND user_id = :user_id
-                ", [
-                    'campaign_id' => $ad['campaign_id'],
-                    'user_id' => $userId
-                ]);
-                
-                if (!$campaign) continue;
-                
-                $adset = null;
-                if (!empty($ad['adset_id'])) {
-                    $adset = $this->db->fetch("
-                        SELECT id FROM adsets 
-                        WHERE adset_id = :adset_id
-                    ", ['adset_id' => $ad['adset_id']]);
-                }
-                
-                $exists = $this->db->fetch("
-                    SELECT id FROM ads 
-                    WHERE ad_id = :ad_id
-                ", ['ad_id' => $ad['id']]);
-                
-                $data = [
-                    'ad_name' => $ad['name'] ?? 'Sem nome',
-                    'status' => $this->mapStatus($ad['status'] ?? 'PAUSED'),
-                    'spent' => floatval($ad['spend'] ?? 0),
-                    'impressions' => intval($ad['impressions'] ?? 0),
-                    'clicks' => intval($ad['clicks'] ?? 0),
-                    'ctr' => floatval($ad['ctr'] ?? 0),
-                    'cpc' => floatval($ad['cpc'] ?? 0),
-                    'cpm' => floatval($ad['cpm'] ?? 0),
-                    'conversions' => intval($ad['conversions'] ?? 0),
-                    'last_sync' => date('Y-m-d H:i:s')
-                ];
-                
-                if ($exists) {
-                    $this->db->update('ads', $data, 'id = :id', ['id' => $exists['id']]);
-                    $updated++;
-                } else {
-                    $data['user_id'] = $userId;
-                    $data['campaign_id'] = $campaign['id'];
-                    $data['adset_id'] = $adset ? $adset['id'] : null;
-                    $data['ad_id'] = $ad['id'];
-                    $this->db->insert('ads', $data);
-                    $imported++;
-                }
-            }
-            
-            $this->json([
-                'success' => true,
-                'message' => "✅ {$imported} novo(s), {$updated} atualizado(s)",
-                'imported' => $imported,
-                'updated' => $updated
-            ]);
-            
-        } catch (Exception $e) {
-            $this->json(['success' => false, 'message' => $e->getMessage()], 500);
-        }
-    }
-    
-    /**
-     * Atualiza campo inline (local + Facebook)
-     */
-    public function updateField() {
-        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-            $this->json(['success' => false, 'message' => 'Método inválido'], 405);
-            return;
-        }
-        
-        $userId = $this->auth->id();
-        $rawInput = file_get_contents('php://input');
-        $data = json_decode($rawInput, true);
+        $data = json_decode(file_get_contents('php://input'), true);
         
         $adId = $data['ad_id'] ?? null;
-        $field = $data['field'] ?? null;
-        $value = $data['value'] ?? null;
+        $metaAdId = $data['meta_ad_id'] ?? null;
+        $status = $data['status'] ?? null;
         
-        if (empty($adId) || empty($field)) {
+        if (empty($adId) || empty($metaAdId) || empty($status)) {
             $this->json(['success' => false, 'message' => 'Dados inválidos'], 400);
             return;
         }
         
-        $allowedFields = ['status', 'ad_name'];
-        
-        if (!in_array($field, $allowedFields)) {
-            $this->json(['success' => false, 'message' => 'Campo não editável'], 400);
-            return;
-        }
-        
         try {
-            // Busca ad e token
             $ad = $this->db->fetch("
-                SELECT a.*, aa.access_token
+                SELECT a.*, c.ad_account_id, aa.access_token
                 FROM ads a
                 JOIN campaigns c ON c.id = a.campaign_id
                 JOIN ad_accounts aa ON aa.id = c.ad_account_id
@@ -391,38 +294,72 @@ class AdController extends Controller {
                 return;
             }
             
-            // Tenta atualizar no Facebook
-            $metaUpdateSuccess = false;
-            $metaUpdateMessage = '';
+            $this->updateFieldOnMeta($metaAdId, $ad['access_token'], 'status', $status);
             
-            if ($field === 'status') {
+            $this->db->update('ads', ['status' => $status], 'id = :id', ['id' => $adId]);
+            
+            $this->json(['success' => true, 'message' => '✅ Status atualizado!', 'meta_updated' => true]);
+            
+        } catch (Exception $e) {
+            $this->json(['success' => false, 'message' => $e->getMessage()], 500);
+        }
+    }
+    
+    /**
+     * Atualiza campo genérico
+     */
+    public function updateField() {
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            $this->json(['success' => false, 'message' => 'Método inválido'], 405);
+            return;
+        }
+        
+        $userId = $this->auth->id();
+        $data = json_decode(file_get_contents('php://input'), true);
+        
+        $adId = $data['ad_id'] ?? null;
+        $field = $data['field'] ?? null;
+        $value = $data['value'] ?? null;
+        
+        $allowedFields = ['status', 'ad_name'];
+        
+        if (empty($adId) || empty($field) || !in_array($field, $allowedFields)) {
+            $this->json(['success' => false, 'message' => 'Dados inválidos'], 400);
+            return;
+        }
+        
+        try {
+            $ad = $this->db->fetch("
+                SELECT a.*, c.ad_account_id, aa.access_token
+                FROM ads a
+                JOIN campaigns c ON c.id = a.campaign_id
+                JOIN ad_accounts aa ON aa.id = c.ad_account_id
+                WHERE a.id = :id AND a.user_id = :user_id
+            ", ['id' => $adId, 'user_id' => $userId]);
+            
+            if (!$ad) {
+                $this->json(['success' => false, 'message' => 'Anúncio não encontrado'], 404);
+                return;
+            }
+            
+            $metaUpdated = false;
+            if (in_array($field, ['status', 'ad_name'])) {
                 try {
-                    $metaUpdateSuccess = $this->updateAdOnMeta(
-                        $ad['ad_id'],
-                        $ad['access_token'],
-                        $field,
-                        $value
-                    );
-                    
-                    if ($metaUpdateSuccess) {
-                        $metaUpdateMessage = ' ✓ Facebook atualizado';
-                    }
+                    $this->updateFieldOnMeta($ad['ad_id'], $ad['access_token'], $field, $value);
+                    $metaUpdated = true;
                 } catch (Exception $e) {
-                    $metaUpdateMessage = ' ⚠️ Facebook não atualizado';
+                    error_log("Erro Meta: " . $e->getMessage());
                 }
             }
             
-            // Atualiza localmente
-            $this->db->update('ads',
-                [$field => $value],
-                'id = :id',
-                ['id' => $adId]
-            );
+            $this->db->update('ads', [$field => $value], 'id = :id', ['id' => $adId]);
             
             $this->json([
                 'success' => true,
-                'message' => 'Campo atualizado!' . $metaUpdateMessage,
-                'meta_updated' => $metaUpdateSuccess
+                'message' => 'Campo atualizado!' . ($metaUpdated ? ' ✓ Meta Ads' : ''),
+                'field' => $field,
+                'value' => $value,
+                'meta_updated' => $metaUpdated
             ]);
             
         } catch (Exception $e) {
@@ -440,9 +377,8 @@ class AdController extends Controller {
         }
         
         $userId = $this->auth->id();
-        $rawInput = file_get_contents('php://input');
-        $jsonData = json_decode($rawInput, true);
-        $columns = $jsonData['columns'] ?? $this->post('columns');
+        $data = json_decode(file_get_contents('php://input'), true);
+        $columns = $data['columns'] ?? null;
         
         if (empty($columns) || !is_array($columns)) {
             $this->json(['success' => false, 'message' => 'Colunas inválidas'], 400);
@@ -475,98 +411,24 @@ class AdController extends Controller {
         }
     }
     
-    /**
-     * Visualiza preview do anúncio
-     */
-    public function preview() {
-        $userId = $this->auth->id();
-        $adId = $this->get('id');
-        
-        if (empty($adId)) {
-            $this->redirect('index.php?page=anuncios&error=' . urlencode('Anúncio não especificado'));
-            return;
-        }
-        
-        $ad = $this->db->fetch("
-            SELECT 
-                a.*,
-                c.campaign_name,
-                ads.adset_name,
-                aa.account_name,
-                aa.access_token
-            FROM ads a
-            LEFT JOIN campaigns c ON c.id = a.campaign_id
-            LEFT JOIN adsets ads ON ads.id = a.adset_id
-            LEFT JOIN ad_accounts aa ON c.ad_account_id = aa.id
-            WHERE a.id = :id AND a.user_id = :user_id
-        ", [
-            'id' => $adId,
-            'user_id' => $userId
-        ]);
-        
-        if (!$ad) {
-            $this->redirect('index.php?page=anuncios&error=' . urlencode('Anúncio não encontrado'));
-            return;
-        }
-        
-        // Se tem preview_url, usa ela
-        if (empty($ad['preview_url']) && !empty($ad['access_token'])) {
-            // Tenta buscar preview do Facebook
-            try {
-                $previewUrl = $this->fetchAdPreview($ad['ad_id'], $ad['access_token']);
-                if ($previewUrl) {
-                    // Salva para futuras consultas
-                    $this->db->update('ads',
-                        ['preview_url' => $previewUrl],
-                        'id = :id',
-                        ['id' => $adId]
-                    );
-                    $ad['preview_url'] = $previewUrl;
-                }
-            } catch (Exception $e) {
-                // Ignora erro
-            }
-        }
-        
-        $this->render('campaigns/ad_preview', [
-            'config' => $this->config,
-            'user' => $this->auth->user(),
-            'ad' => $ad,
-            'pageTitle' => 'Preview - ' . $ad['ad_name']
-        ]);
-    }
-    
     // ========================================================================
     // MÉTODOS PRIVADOS
     // ========================================================================
     
     /**
-     * Busca ads com insights do Meta
-     * @private
+     * Busca anúncios da API Meta Ads com insights
      */
-    private function fetchMetaAdsWithInsights($accountId, $accessToken) {
+    private function fetchAdsFromMeta($accountId, $accessToken) {
         $accountId = str_replace('act_', '', $accountId);
         
-        // Busca dados básicos
+        // Busca anúncios
         $url = 'https://graph.facebook.com/v18.0/act_' . $accountId . '/ads?' . http_build_query([
-            'fields' => 'id,name,status,campaign_id,adset_id,creative,preview_shareable_link',
+            'fields' => 'id,name,status,campaign_id,adset_id,creative,preview_shareable_link,created_time',
             'access_token' => $accessToken,
             'limit' => 300
         ]);
         
-        $ch = curl_init($url);
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
-        curl_setopt($ch, CURLOPT_TIMEOUT, 30);
-        
-        $response = curl_exec($ch);
-        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        curl_close($ch);
-        
-        if ($httpCode !== 200) {
-            throw new Exception("Erro API Meta: HTTP {$httpCode}");
-        }
-        
+        $response = $this->curlGet($url);
         $data = json_decode($response, true);
         
         if (!isset($data['data'])) {
@@ -575,8 +437,26 @@ class AdController extends Controller {
         
         $ads = $data['data'];
         
-        // Busca insights para cada ad
+        // Busca insights para cada anúncio
         foreach ($ads as $index => $ad) {
+            // Define período de insights (da criação até hoje)
+            $since = date('Y-m-d', strtotime($ad['created_time'] ?? '-30 days'));
+            $until = date('Y-m-d');
+            
+            $insightsUrl = 'https://graph.facebook.com/v18.0/' . $ad['id'] . '/insights?' . http_build_query([
+                'fields' => 'impressions,clicks,spend,reach,frequency,ctr,cpc,cpm,actions',
+                'access_token' => $accessToken,
+                'time_range' => json_encode(['since' => $since, 'until' => $until])
+            ]);
+            
+            try {
+                $insightsResponse = $this->curlGet($insightsUrl, 15);
+                $insightsData = json_decode($insightsResponse, true);
+            } catch (Exception $e) {
+                $insightsData = ['data' => []];
+            }
+            
+            // Inicializa com zeros
             $ads[$index]['impressions'] = 0;
             $ads[$index]['clicks'] = 0;
             $ads[$index]['spend'] = 0;
@@ -587,84 +467,70 @@ class AdController extends Controller {
             $ads[$index]['cpm'] = 0;
             $ads[$index]['conversions'] = 0;
             
-            $insightsUrl = 'https://graph.facebook.com/v18.0/' . $ad['id'] . '/insights?' . http_build_query([
-                'fields' => 'impressions,clicks,spend,reach,frequency,ctr,cpc,cpm,actions',
-                'access_token' => $accessToken,
-                'time_range' => json_encode([
-                    'since' => date('Y-m-d', strtotime('-90 days')),
-                    'until' => date('Y-m-d')
-                ])
-            ]);
-            
-            $ch = curl_init($insightsUrl);
-            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-            curl_setopt($ch, CURLOPT_TIMEOUT, 15);
-            
-            $insightsResponse = curl_exec($ch);
-            $insightsCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-            curl_close($ch);
-            
-            if ($insightsCode === 200) {
-                $insightsData = json_decode($insightsResponse, true);
-                if (isset($insightsData['data'][0])) {
-                    $insights = $insightsData['data'][0];
-                    $ads[$index]['impressions'] = intval($insights['impressions'] ?? 0);
-                    $ads[$index]['clicks'] = intval($insights['clicks'] ?? 0);
-                    $ads[$index]['spend'] = floatval($insights['spend'] ?? 0);
-                    $ads[$index]['reach'] = intval($insights['reach'] ?? 0);
-                    $ads[$index]['frequency'] = floatval($insights['frequency'] ?? 0);
-                    $ads[$index]['ctr'] = floatval($insights['ctr'] ?? 0);
-                    $ads[$index]['cpc'] = floatval($insights['cpc'] ?? 0);
-                    $ads[$index]['cpm'] = floatval($insights['cpm'] ?? 0);
-                    
-                    // Conta conversões
-                    if (isset($insights['actions'])) {
-                        foreach ($insights['actions'] as $action) {
-                            if (in_array($action['action_type'], ['purchase', 'omni_purchase'])) {
-                                $ads[$index]['conversions'] += intval($action['value'] ?? 0);
-                            }
+            if (isset($insightsData['data'][0])) {
+                $insights = $insightsData['data'][0];
+                
+                $ads[$index]['impressions'] = intval($insights['impressions'] ?? 0);
+                $ads[$index]['clicks'] = intval($insights['clicks'] ?? 0);
+                $ads[$index]['spend'] = floatval($insights['spend'] ?? 0);
+                $ads[$index]['reach'] = intval($insights['reach'] ?? 0);
+                $ads[$index]['frequency'] = floatval($insights['frequency'] ?? 0);
+                $ads[$index]['ctr'] = floatval($insights['ctr'] ?? 0);
+                $ads[$index]['cpc'] = floatval($insights['cpc'] ?? 0);
+                $ads[$index]['cpm'] = floatval($insights['cpm'] ?? 0);
+                
+                // Processa conversões
+                if (isset($insights['actions'])) {
+                    foreach ($insights['actions'] as $action) {
+                        if (in_array($action['action_type'], ['purchase', 'omni_purchase'])) {
+                            $ads[$index]['conversions'] += intval($action['value'] ?? 0);
                         }
                     }
                 }
             }
             
-            usleep(200000); // 200ms delay
+            usleep(200000);
         }
         
         return $ads;
     }
     
     /**
-     * Busca preview do ad
-     * @private
+     * Prepara dados do anúncio para salvar no banco
      */
-    private function fetchAdPreview($adId, $accessToken) {
-        $url = 'https://graph.facebook.com/v18.0/' . $adId . '?' . http_build_query([
-            'fields' => 'preview_shareable_link',
-            'access_token' => $accessToken
-        ]);
+    private function prepareAdData($ad, $campaignId, $adsetId) {
+        $statusMap = [
+            'ACTIVE' => 'active',
+            'PAUSED' => 'paused',
+            'DELETED' => 'deleted',
+            'ARCHIVED' => 'deleted'
+        ];
         
-        $ch = curl_init($url);
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ch, CURLOPT_TIMEOUT, 10);
-        
-        $response = curl_exec($ch);
-        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        curl_close($ch);
-        
-        if ($httpCode === 200) {
-            $data = json_decode($response, true);
-            return $data['preview_shareable_link'] ?? null;
-        }
-        
-        return null;
+        return [
+            'campaign_id' => $campaignId,
+            'adset_id' => $adsetId,
+            'ad_name' => $ad['name'] ?? 'Sem nome',
+            'status' => $statusMap[strtoupper($ad['status'] ?? 'PAUSED')] ?? 'paused',
+            'creative_id' => $ad['creative']['id'] ?? null,
+            'preview_url' => $ad['preview_shareable_link'] ?? null,
+            'spent' => floatval($ad['spend'] ?? 0),
+            'impressions' => intval($ad['impressions'] ?? 0),
+            'clicks' => intval($ad['clicks'] ?? 0),
+            'conversions' => intval($ad['conversions'] ?? 0),
+            'reach' => intval($ad['reach'] ?? 0),
+            'frequency' => floatval($ad['frequency'] ?? 0),
+            'ctr' => floatval($ad['ctr'] ?? 0),
+            'cpc' => floatval($ad['cpc'] ?? 0),
+            'cpm' => floatval($ad['cpm'] ?? 0),
+            'created_at' => isset($ad['created_time']) ? date('Y-m-d H:i:s', strtotime($ad['created_time'])) : null,
+            'last_sync' => date('Y-m-d H:i:s')
+        ];
     }
     
     /**
-     * Atualiza ad no Facebook
-     * @private
+     * Atualiza campo no Meta Ads
      */
-    private function updateAdOnMeta($adId, $accessToken, $field, $value) {
+    private function updateFieldOnMeta($adId, $accessToken, $field, $value) {
         $fieldMap = [
             'ad_name' => 'name',
             'status' => 'status'
@@ -677,18 +543,12 @@ class AdController extends Controller {
         $metaField = $fieldMap[$field];
         $metaValue = $value;
         
-        // Ajusta valores
         if ($field === 'status') {
-            $statusMap = [
-                'active' => 'ACTIVE',
-                'paused' => 'PAUSED',
-                'deleted' => 'DELETED'
-            ];
+            $statusMap = ['active' => 'ACTIVE', 'paused' => 'PAUSED', 'deleted' => 'DELETED'];
             $metaValue = $statusMap[$value] ?? 'PAUSED';
         }
         
         $url = 'https://graph.facebook.com/v18.0/' . $adId;
-        
         $postData = [
             $metaField => $metaValue,
             'access_token' => $accessToken
@@ -711,20 +571,39 @@ class AdController extends Controller {
             throw new Exception($errorMsg);
         }
         
-        return true;
+        $data = json_decode($response, true);
+        return isset($data['success']) && $data['success'] === true;
     }
     
     /**
-     * Mapeia status
-     * @private
+     * Helper para requisições GET com cURL
      */
-    private function mapStatus($metaStatus) {
-        $map = [
-            'ACTIVE' => 'active',
-            'PAUSED' => 'paused',
-            'DELETED' => 'deleted',
-            'ARCHIVED' => 'deleted'
-        ];
-        return $map[strtoupper($metaStatus)] ?? 'paused';
+    private function curlGet($url, $timeout = 30) {
+        $ch = curl_init($url);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
+        curl_setopt($ch, CURLOPT_TIMEOUT, $timeout);
+        curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+        
+        $response = curl_exec($ch);
+        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $curlError = curl_error($ch);
+        curl_close($ch);
+        
+        if ($httpCode !== 200) {
+            $errorMsg = "Erro API Meta: HTTP {$httpCode}";
+            if (!empty($curlError)) {
+                $errorMsg .= " - cURL: {$curlError}";
+            }
+            if (!empty($response)) {
+                $errorData = json_decode($response, true);
+                if (isset($errorData['error']['message'])) {
+                    $errorMsg .= " - " . $errorData['error']['message'];
+                }
+            }
+            throw new Exception($errorMsg);
+        }
+        
+        return $response;
     }
 }

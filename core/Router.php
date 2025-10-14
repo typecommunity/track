@@ -1,11 +1,15 @@
 <?php
 /**
  * UTMTrack - Sistema de Rotas COMPLETO E CORRIGIDO
- * Versão 5.0 - Com Sincronização Bidirecional Meta Ads
+ * Versão 5.2 - Com Sistema de Despesas, Impostos e Taxas
  * 
  * Correções implementadas:
  * - Adicionadas rotas para atualização de status no Meta Ads
  * - Adicionadas rotas para atualização de orçamento no Meta Ads
+ * - Adicionadas rotas para sistema de despesas
+ * - Adicionadas rotas para sistema de impostos
+ * - Adicionadas rotas para sistema de taxas
+ * - Adicionadas rotas para custos de produtos
  * - Mantidos todos os métodos auxiliares úteis
  * - Organização melhorada das rotas
  * 
@@ -228,10 +232,31 @@ class Router {
             'report-generate' => ['ReportController', 'generate'],
             
             // ========================================
-            // TAXAS E DESPESAS
+            // TAXAS, IMPOSTOS E DESPESAS
             // ========================================
             'taxas' => ['TaxController', 'index'],
             'despesas' => ['ExpenseController', 'index'],
+            
+            // 🔥 ROTAS AJAX - IMPOSTOS
+            'imposto-get' => ['TaxController', 'getImposto'],
+            'imposto-store' => ['TaxController', 'storeImposto'],
+            'imposto-update' => ['TaxController', 'updateImposto'],
+            'imposto-delete' => ['TaxController', 'deleteImposto'],
+            
+            // 🔥 ROTAS AJAX - TAXAS
+            'tax-get' => ['TaxController', 'getTax'],
+            'tax-store' => ['TaxController', 'store'],
+            'tax-update' => ['TaxController', 'update'],
+            'tax-delete' => ['TaxController', 'delete'],
+            
+            // 🔥 ROTAS AJAX - CUSTOS DE PRODUTOS
+            'tax-update-costs' => ['TaxController', 'updateProductCosts'],
+            
+            // 🔥 ROTAS AJAX - DESPESAS
+            'expense-get' => ['ExpenseController', 'getExpense'],
+            'expense-store' => ['ExpenseController', 'store'],
+            'expense-update' => ['ExpenseController', 'update'],
+            'expense-delete' => ['ExpenseController', 'delete'],
             
             // ========================================
             // ADMIN

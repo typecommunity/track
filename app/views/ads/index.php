@@ -1,357 +1,198 @@
-<!-- 
-    UTMTrack - Lista de Anúncios
-    Arquivo: app/views/ads/index.php
--->
+<?php
+/**
+ * CAMINHO: /utmtrack/app/views/ads/index.php
+ * Dashboard de Anúncios
+ * (MESMO PADRÃO - adaptar nomes de adsets para ads)
+ */
 
-<style>
-.page-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 30px;
-    flex-wrap: wrap;
-    gap: 20px;
+// AJAX HANDLERS (mesma lógica)
+if (isset($_GET['ajax_action'])) {
+    header('Content-Type: application/json');
+    
+    if (!isset($_SESSION['user_id'])) {
+        http_response_code(401);
+        echo json_encode(['success' => false, 'message' => 'Não autorizado']);
+        exit;
+    }
+    
+    require_once dirname(__DIR__, 2) . '/core/Database.php';
+    require_once dirname(__DIR__, 2) . '/core/Controller.php';
+    require_once dirname(__DIR__, 2) . '/core/Auth.php';
+    require_once dirname(__DIR__, 2) . '/core/Config.php';
+    require_once dirname(__DIR__) . '/controllers/AdController.php';
+    
+    $controller = new AdController();
+    
+    switch ($_GET['ajax_action']) {
+        case 'sync_all':
+            $_SERVER['REQUEST_METHOD'] = 'POST';
+            $controller->syncAll();
+            exit;
+        case 'update_status':
+            $_SERVER['REQUEST_METHOD'] = 'POST';
+            $controller->updateMetaStatus();
+            exit;
+        case 'update_field':
+            $_SERVER['REQUEST_METHOD'] = 'POST';
+            $controller->updateField();
+            exit;
+        case 'save_columns':
+            $_SERVER['REQUEST_METHOD'] = 'POST';
+            $controller->saveColumns();
+            exit;
+    }
+    
+    echo json_encode(['success' => false, 'message' => 'Ação não reconhecida']);
+    exit;
 }
 
-.page-title {
-    font-size: 28px;
-    font-weight: 700;
-    color: white;
-    margin: 0;
-}
+// Valores padrão
+$ads = $ads ?? [];
+$stats = $stats ?? [];
+$userColumns = $userColumns ?? null;
 
-.breadcrumb {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    color: #94a3b8;
-    font-size: 14px;
-    margin-bottom: 10px;
-}
+// Colunas visíveis
+$visibleColumns = $userColumns ?? ['nome', 'status', 'vendas', 'cpa', 'gastos', 'faturamento', 'lucro', 'roas', 'margem', 'roi'];
 
-.breadcrumb a {
-    color: #667eea;
-    text-decoration: none;
-}
+// Assets
+$projectRoot = 'https://ataweb.com.br/utmtrack';
+$cssPath = $projectRoot . '/assets/css/campaigns-dashboard.css?v=14.1';
+$jsPath = $projectRoot . '/assets/js/ads-dashboard.js?v=14.1';
+?>
 
-.breadcrumb a:hover {
-    text-decoration: underline;
-}
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>UTMTrack - Anúncios</title>
+    <link rel="stylesheet" href="<?= $cssPath ?>">
+    <script>
+        window.userColumnsConfig = <?= json_encode($visibleColumns) ?>;
+        window.baseUrl = '<?= $projectRoot ?>';
+    </script>
+</head>
+<body>
 
-.metrics-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 20px;
-    margin-bottom: 30px;
-}
-
-.metric-card {
-    background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
-    border: 1px solid #334155;
-    border-radius: 12px;
-    padding: 20px;
-}
-
-.metric-label {
-    font-size: 13px;
-    color: #94a3b8;
-    margin-bottom: 8px;
-}
-
-.metric-value {
-    font-size: 28px;
-    font-weight: 700;
-    color: white;
-    margin-bottom: 8px;
-}
-
-.metric-info {
-    font-size: 12px;
-    color: #64748b;
-}
-
-.ads-table {
-    width: 100%;
-    border-collapse: collapse;
-}
-
-.ads-table th,
-.ads-table td {
-    padding: 16px;
-    text-align: left;
-    border-bottom: 1px solid #1e293b;
-}
-
-.ads-table th {
-    background: #0f172a;
-    color: #e2e8f0;
-    font-weight: 600;
-    font-size: 12px;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    position: sticky;
-    top: 0;
-    z-index: 10;
-}
-
-.ads-table td {
-    color: #cbd5e1;
-    font-size: 14px;
-}
-
-.ads-table tbody tr {
-    transition: background-color 0.2s;
-}
-
-.ads-table tbody tr:hover {
-    background: rgba(100, 116, 139, 0.08);
-    cursor: pointer;
-}
-
-.ad-name {
-    font-weight: 600;
-    color: white;
-    margin-bottom: 4px;
-}
-
-.ad-id {
-    font-size: 11px;
-    color: #64748b;
-    font-family: monospace;
-}
-
-.badge-success {
-    background: rgba(16, 185, 129, 0.15);
-    color: #10b981;
-    padding: 4px 12px;
-    border-radius: 12px;
-    font-size: 11px;
-    font-weight: 600;
-    display: inline-block;
-}
-
-.badge-warning {
-    background: rgba(251, 191, 36, 0.15);
-    color: #fbbf24;
-    padding: 4px 12px;
-    border-radius: 12px;
-    font-size: 11px;
-    font-weight: 600;
-    display: inline-block;
-}
-
-.badge-danger {
-    background: rgba(239, 68, 68, 0.15);
-    color: #ef4444;
-    padding: 4px 12px;
-    border-radius: 12px;
-    font-size: 11px;
-    font-weight: 600;
-    display: inline-block;
-}
-
-.empty-state {
-    text-align: center;
-    padding: 60px 20px;
-}
-
-.empty-state-icon {
-    font-size: 64px;
-    margin-bottom: 16px;
-}
-
-.empty-state-title {
-    font-size: 20px;
-    color: #e2e8f0;
-    margin-bottom: 8px;
-    font-weight: 600;
-}
-</style>
-
-<!-- Breadcrumb -->
-<div class="breadcrumb">
-    <a href="index.php?page=integracoes-meta-contas">Contas</a>
-    <span>›</span>
-    <a href="index.php?page=campanhas-meta&account=<?= $adset['ad_account_id'] ?? '' ?>">Campanhas</a>
-    <span>›</span>
-    <a href="index.php?page=conjuntos&campaign=<?= $adset['campaign_db_id'] ?>">Conjuntos</a>
-    <span>›</span>
-    <span><?= htmlspecialchars($adset['adset_name']) ?></span>
+<!-- TABS DE NAVEGAÇÃO -->
+<div class="tabs-container">
+    <button class="tab-button" onclick="window.location.href='index.php?page=integracoes-meta-contas'">
+        <svg class="icon" viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>
+        Contas
+    </button>
+    <button class="tab-button" onclick="window.location.href='index.php?page=campanhas'">
+        <svg class="icon" viewBox="0 0 24 24"><line x1="12" y1="1" x2="12" y2="23"></line><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
+        Campanhas
+    </button>
+    <button class="tab-button" onclick="window.location.href='index.php?page=conjuntos'">
+        <svg class="icon" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="3" y1="9" x2="21" y2="9"></line><line x1="9" y1="21" x2="9" y2="9"></line></svg>
+        Conjuntos
+    </button>
+    <button class="tab-button active">
+        <svg class="icon" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+        Anúncios
+    </button>
 </div>
 
-<!-- Page Header -->
-<div class="page-header">
-    <div>
-        <h1 class="page-title">📝 Anúncios</h1>
-        <p style="color: #94a3b8; margin-top: 8px;">
-            Conjunto: <strong style="color: white;"><?= htmlspecialchars($adset['adset_name']) ?></strong>
-        </p>
+<!-- TOOLBAR -->
+<div class="toolbar">
+    <div class="toolbar-left">
+        <div class="status-indicator">Sistema Online</div>
     </div>
-    
-    <div style="display: flex; gap: 10px;">
-        <button onclick="syncAds()" class="btn" style="background: #10b981; color: white;">
-            🔄 Sincronizar
-        </button>
-        <a href="index.php?page=conjunto-detalhes&id=<?= $adset['id'] ?>" class="btn" style="background: #334155; color: white; text-decoration: none;">
-            ← Voltar
-        </a>
-    </div>
-</div>
-
-<!-- Métricas Resumidas -->
-<div class="metrics-grid">
-    <div class="metric-card">
-        <div class="metric-label">📝 Total de Anúncios</div>
-        <div class="metric-value"><?= number_format($stats['total_ads'] ?? 0, 0, ',', '.') ?></div>
-        <div class="metric-info">
-            <?= $stats['active_ads'] ?? 0 ?> ativos
-        </div>
-    </div>
-    
-    <div class="metric-card">
-        <div class="metric-label">💰 Gasto Total</div>
-        <div class="metric-value">R$ <?= number_format($stats['total_spent'] ?? 0, 2, ',', '.') ?></div>
-    </div>
-    
-    <div class="metric-card">
-        <div class="metric-label">👁️ Impressões</div>
-        <div class="metric-value"><?= number_format($stats['total_impressions'] ?? 0, 0, ',', '.') ?></div>
-    </div>
-    
-    <div class="metric-card">
-        <div class="metric-label">👆 Cliques</div>
-        <div class="metric-value"><?= number_format($stats['total_clicks'] ?? 0, 0, ',', '.') ?></div>
-        <div class="metric-info">
-            CTR: <?= $stats['ctr'] ?? 0 ?>%
-        </div>
-    </div>
-    
-    <div class="metric-card">
-        <div class="metric-label">🎯 Conversões</div>
-        <div class="metric-value"><?= number_format($stats['total_conversions'] ?? 0, 0, ',', '.') ?></div>
-    </div>
-    
-    <div class="metric-card">
-        <div class="metric-label">📊 Alcance Médio</div>
-        <div class="metric-value"><?= number_format($stats['avg_reach'] ?? 0, 0, ',', '.') ?></div>
-        <div class="metric-info">
-            Frequência: <?= number_format($stats['avg_frequency'] ?? 0, 2, ',', '.') ?>
-        </div>
-    </div>
-</div>
-
-<!-- Tabela de Anúncios -->
-<div class="card">
-    <div class="card-header">
-        <h2 class="card-title">📋 Lista de Anúncios</h2>
-        <div style="color: #94a3b8; font-size: 13px;">
-            <?= count($ads) ?> anúncio(s)
-        </div>
-    </div>
-    
-    <?php if (empty($ads)): ?>
-    <div class="empty-state">
-        <div class="empty-state-icon">📝</div>
-        <div class="empty-state-title">Nenhum anúncio encontrado</div>
-        <p style="color: #64748b;">Sincronize o conjunto para importar os anúncios</p>
-        <button onclick="syncAds()" class="btn btn-primary" style="margin-top: 20px;">
-            🔄 Sincronizar Agora
+    <div class="toolbar-right">
+        <span style="color: var(--text-secondary); font-size: 13px;">
+            <?= $stats['total_ads'] ?? 0 ?> anúncios | <?= $stats['active_ads'] ?? 0 ?> ativos
+        </span>
+        <button onclick="syncAllAds()" class="btn btn-primary" style="padding: 8px 20px;">
+            <svg class="icon" style="width: 16px; height: 16px;" viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>
+            Atualizar Tudo
         </button>
     </div>
-    <?php else: ?>
-    <div style="overflow-x: auto;">
-        <table class="ads-table">
+</div>
+
+<!-- FILTROS -->
+<div class="filters-bar">
+    <input type="text" class="filter-input" id="searchInput" placeholder="Filtrar por nome..." onkeyup="filterTable()">
+    <select class="filter-select" id="statusFilter" onchange="filterTable()">
+        <option value="">Todos os Status</option>
+        <option value="active">Ativados</option>
+        <option value="paused">Desativados</option>
+    </select>
+    <button onclick="openColumnsModal()" class="btn btn-secondary" style="padding: 10px 16px;">
+        Personalizar Colunas
+    </button>
+</div>
+
+<!-- TABELA (mesma estrutura, adaptar campos) -->
+<div class="table-wrapper">
+    <div class="table-container">
+        <table class="campaigns-table">
             <thead>
-                <tr>
-                    <th>Anúncio</th>
-                    <th>Status</th>
-                    <th>Gasto</th>
-                    <th>Impressões</th>
-                    <th>Cliques</th>
-                    <th>CTR</th>
-                    <th>CPC</th>
-                    <th>Conversões</th>
-                    <th>Alcance</th>
-                    <th>Frequência</th>
-                </tr>
+                <tr id="tableHeader"></tr>
             </thead>
-            <tbody>
-                <?php foreach ($ads as $ad): 
-                    $ctr = $ad['impressions'] > 0 ? ($ad['clicks'] / $ad['impressions']) * 100 : 0;
-                    $cpc = $ad['clicks'] > 0 ? $ad['spent'] / $ad['clicks'] : 0;
-                ?>
-                <tr onclick="viewAdDetails(<?= $ad['id'] ?>)">
-                    <td>
-                        <div class="ad-name">
-                            <?= htmlspecialchars($ad['ad_name']) ?>
-                        </div>
-                        <div class="ad-id">
-                            ID: <?= htmlspecialchars($ad['ad_id']) ?>
+            <tbody id="tableBody">
+                <?php if (empty($ads)): ?>
+                <tr>
+                    <td colspan="25" style="border: none;">
+                        <div class="empty-state">
+                            <div class="empty-state-icon">📝</div>
+                            <div class="empty-state-title">Nenhum anúncio encontrado</div>
                         </div>
                     </td>
-                    <td>
-                        <span class="badge-<?= $ad['status'] === 'active' ? 'success' : ($ad['status'] === 'paused' ? 'warning' : 'danger') ?>">
-                            <?php
-                            $statusLabels = [
-                                'active' => '✓ Ativo',
-                                'paused' => '⏸ Pausado',
-                                'deleted' => '🗑 Deletado'
-                            ];
-                            echo $statusLabels[$ad['status']] ?? $ad['status'];
-                            ?>
-                        </span>
-                    </td>
-                    <td style="font-weight: 600;">R$ <?= number_format($ad['spent'], 2, ',', '.') ?></td>
-                    <td><?= number_format($ad['impressions'], 0, ',', '.') ?></td>
-                    <td><?= number_format($ad['clicks'], 0, ',', '.') ?></td>
-                    <td><?= number_format($ctr, 2, ',', '.') ?>%</td>
-                    <td>R$ <?= number_format($cpc, 2, ',', '.') ?></td>
-                    <td><?= number_format($ad['conversions'], 0, ',', '.') ?></td>
-                    <td><?= number_format($ad['reach'], 0, ',', '.') ?></td>
-                    <td><?= number_format($ad['frequency'], 2, ',', '.') ?></td>
                 </tr>
-                <?php endforeach; ?>
+                <?php else: ?>
+                    <?php foreach ($ads as $ad): ?>
+                    <tr data-id="<?= $ad['id'] ?>" 
+                        data-ad-id="<?= htmlspecialchars($ad['ad_id']) ?>"
+                        data-name="<?= strtolower($ad['ad_name']) ?>" 
+                        data-status="<?= $ad['status'] ?>">
+                        
+                        <!-- NOME -->
+                        <td data-column="nome">
+                            <div class="campaign-name-cell" 
+                                 onclick="makeEditableName(this, <?= $ad['id'] ?>)"
+                                 data-value="<?= htmlspecialchars($ad['ad_name']) ?>">
+                                <?= htmlspecialchars($ad['ad_name']) ?>
+                            </div>
+                            <div class="campaign-id">
+                                Conjunto: <?= htmlspecialchars($ad['adset_name']) ?>
+                            </div>
+                        </td>
+                        
+                        <!-- STATUS TOGGLE -->
+                        <td data-column="status">
+                            <div class="status-with-toggle">
+                                <label class="toggle-switch">
+                                    <input type="checkbox" 
+                                           <?= $ad['status'] === 'active' ? 'checked' : '' ?>
+                                           onchange="toggleAdStatus(this, <?= $ad['id'] ?>, '<?= htmlspecialchars($ad['ad_id']) ?>')">
+                                    <span class="toggle-slider"></span>
+                                </label>
+                            </div>
+                        </td>
+                        
+                        <!-- DEMAIS COLUNAS (mesma estrutura) -->
+                        <td data-column="vendas"><?= number_format($ad['real_sales'] ?? 0, 0, ',', '.') ?></td>
+                        <td data-column="cpa">R$ <?= number_format($ad['live_cpa'] ?? 0, 2, ',', '.') ?></td>
+                        <td data-column="gastos"><strong>R$ <?= number_format($ad['spent'], 2, ',', '.') ?></strong></td>
+                        <td data-column="faturamento">R$ <?= number_format($ad['real_revenue'] ?? 0, 2, ',', '.') ?></td>
+                        <td data-column="lucro">R$ <?= number_format($ad['real_profit'] ?? 0, 2, ',', '.') ?></td>
+                        <td data-column="roas"><?= number_format($ad['live_roas'] ?? 0, 2, ',', '.') ?>x</td>
+                        <td data-column="margem"><?= number_format($ad['live_margin'] ?? 0, 2, ',', '.') ?>%</td>
+                        <td data-column="roi"><?= number_format($ad['live_roi'] ?? 0, 2, ',', '.') ?>%</td>
+                    </tr>
+                    <?php endforeach; ?>
+                <?php endif; ?>
             </tbody>
         </table>
     </div>
-    <?php endif; ?>
 </div>
 
-<script>
-// Sincronizar anúncios
-async function syncAds() {
-    const btn = event.target;
-    const originalText = btn.innerHTML;
-    btn.innerHTML = '⏳ Sincronizando...';
-    btn.disabled = true;
-    
-    try {
-        const response = await fetch('index.php?page=anuncios-sync', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/x-www-form-urlencoded'
-            },
-            body: 'adset_id=<?= $adset['id'] ?>'
-        });
-        
-        const result = await response.json();
-        
-        if (result.success) {
-            alert('✓ ' + result.message);
-            window.location.reload();
-        } else {
-            alert('✗ ' + result.message);
-        }
-    } catch (error) {
-        alert('Erro ao sincronizar: ' + error.message);
-    } finally {
-        btn.innerHTML = originalText;
-        btn.disabled = false;
-    }
-}
+<!-- MODAL (mesmo código) -->
+<div class="modal-overlay" id="columnsModal">
+    <!-- Mesmo HTML do modal de campanhas -->
+</div>
 
-// Ver detalhes do anúncio
-function viewAdDetails(adId) {
-    window.location.href = `index.php?page=anuncio-detalhes&id=${adId}`;
-}
-</script>
+<script src="<?= $jsPath ?>"></script>
+</body>
+</html>
