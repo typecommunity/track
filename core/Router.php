@@ -1,17 +1,12 @@
 <?php
 /**
- * UTMTrack - Sistema de Rotas COMPLETO E CORRIGIDO
- * Versão 5.2 - Com Sistema de Despesas, Impostos e Taxas
+ * UTMTrack - Sistema de Rotas COMPLETO
+ * Versão 5.5 - Com Sistema Híbrido de Produtos
  * 
- * Correções implementadas:
- * - Adicionadas rotas para atualização de status no Meta Ads
- * - Adicionadas rotas para atualização de orçamento no Meta Ads
- * - Adicionadas rotas para sistema de despesas
- * - Adicionadas rotas para sistema de impostos
- * - Adicionadas rotas para sistema de taxas
- * - Adicionadas rotas para custos de produtos
- * - Mantidos todos os métodos auxiliares úteis
- * - Organização melhorada das rotas
+ * Correções nesta versão:
+ * - Rotas de produtos corrigidas (show ao invés de get)
+ * - Sistema híbrido de produtos implementado
+ * - Todas as funcionalidades anteriores mantidas
  * 
  * Arquivo: core/Router.php
  */
@@ -105,7 +100,7 @@ class Router {
             'campanhas-bulk-action' => ['CampaignController', 'bulkAction'],
             'campanhas-duplicate' => ['CampaignController', 'duplicate'],
             
-            // 🔥 NOVAS ROTAS - SINCRONIZAÇÃO BIDIRECIONAL META ADS (CAMPANHAS)
+            // 🔥 ROTAS - SINCRONIZAÇÃO BIDIRECIONAL META ADS (CAMPANHAS)
             'campanhas-update-meta-status' => ['CampaignController', 'updateMetaStatus'],
             'campanhas-update-meta-budget' => ['CampaignController', 'updateMetaBudget'],
             
@@ -125,7 +120,7 @@ class Router {
             'conjuntos-save-columns' => ['AdSetController', 'saveColumns'],
             'conjuntos-update-field' => ['AdSetController', 'updateField'],
             
-            // 🔥 NOVAS ROTAS - SINCRONIZAÇÃO BIDIRECIONAL META ADS (CONJUNTOS)
+            // 🔥 ROTAS - SINCRONIZAÇÃO BIDIRECIONAL META ADS (CONJUNTOS)
             'conjuntos-update-meta-status' => ['AdSetController', 'updateMetaStatus'],
             'conjuntos-update-meta-budget' => ['AdSetController', 'updateMetaBudget'],
             
@@ -146,7 +141,7 @@ class Router {
             'anuncios-save-columns' => ['AdController', 'saveColumns'],
             'anuncios-update-field' => ['AdController', 'updateField'],
             
-            // 🔥 NOVAS ROTAS - SINCRONIZAÇÃO BIDIRECIONAL META ADS (ANÚNCIOS)
+            // 🔥 ROTAS - SINCRONIZAÇÃO BIDIRECIONAL META ADS (ANÚNCIOS)
             'anuncios-update-meta-status' => ['AdController', 'updateMetaStatus'],
             
             // ========================================
@@ -195,15 +190,31 @@ class Router {
             'regra-update' => ['RuleController', 'update'],
             'regra-delete' => ['RuleController', 'delete'],
             'regra-toggle' => ['RuleController', 'toggle'],
+            'regra-get' => ['RuleController', 'getRule'],
+            'regra-logs' => ['RuleController', 'logs'],
+            'regra-execute' => ['RuleController', 'execute'],
+            
+            // Aliases para compatibilidade
+            'rule-create' => ['RuleController', 'create'],
+            'rule-update' => ['RuleController', 'update'],
+            'rule-delete' => ['RuleController', 'delete'],
+            'rule-get' => ['RuleController', 'getRule'],
+            'rule-toggle' => ['RuleController', 'toggle'],
+            'rule-logs' => ['RuleController', 'logs'],
+            'rule-execute' => ['RuleController', 'execute'],
             
             // ========================================
-            // PRODUTOS
+            // PRODUTOS - SISTEMA HÍBRIDO ✅ CORRIGIDO
             // ========================================
             'produtos' => ['ProductController', 'index'],
+            'products' => ['ProductController', 'index'], // Alias
+            
+            // Rotas AJAX - CORRIGIDAS
+            'product-show' => ['ProductController', 'show'], // ✅ MUDOU DE get PARA show
             'product-create' => ['ProductController', 'create'],
             'product-update' => ['ProductController', 'update'],
             'product-delete' => ['ProductController', 'delete'],
-            'product-get' => ['ProductController', 'get'],
+            'product-link-campaign' => ['ProductController', 'linkToCampaign'],
             
             // ========================================
             // VENDAS
@@ -257,6 +268,15 @@ class Router {
             'expense-store' => ['ExpenseController', 'store'],
             'expense-update' => ['ExpenseController', 'update'],
             'expense-delete' => ['ExpenseController', 'delete'],
+            
+            // ========================================
+            // 💡 AJUDA E DOCUMENTAÇÃO
+            // ========================================
+            'ajuda' => ['HelpController', 'index'],
+            'help-crons' => ['HelpController', 'crons'],
+            'help-webhooks' => ['HelpController', 'webhooks'],
+            'help-meta-ads' => ['HelpController', 'metaAds'],
+            'help-faq' => ['HelpController', 'faq'],
             
             // ========================================
             // ADMIN

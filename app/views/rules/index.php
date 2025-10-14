@@ -1,198 +1,235 @@
-<!-- Estatísticas -->
-<div class="metrics-grid" style="grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); margin-bottom: 30px;">
-    <div class="metric-card">
-        <div class="metric-label">
-            ⚙️ Total de Regras
-        </div>
-        <div class="metric-value">
-            <?= number_format($stats['total_rules'] ?? 0, 0, ',', '.') ?>
-        </div>
-    </div>
-    
-    <div class="metric-card">
-        <div class="metric-label">
-            ✅ Regras Ativas
-        </div>
-        <div class="metric-value" style="color: #10b981;">
-            <?= number_format($stats['active_rules'] ?? 0, 0, ',', '.') ?>
-        </div>
-    </div>
-    
-    <div class="metric-card">
-        <div class="metric-label">
-            🔄 Total de Execuções
-        </div>
-        <div class="metric-value">
-            <?= number_format($stats['total_executions'] ?? 0, 0, ',', '.') ?>
-        </div>
-    </div>
-    
-    <div class="metric-card">
-        <div class="metric-label">
-            ✓ Taxa de Sucesso
-        </div>
-        <div class="metric-value">
-            <?php 
-            $successRate = ($stats['total_executions'] ?? 0) > 0 
-                ? (($stats['successful_executions'] ?? 0) / $stats['total_executions']) * 100 
-                : 0;
-            ?>
-            <span style="color: <?= $successRate >= 80 ? '#10b981' : ($successRate >= 50 ? '#f59e0b' : '#ef4444') ?>">
-                <?= number_format($successRate, 0) ?>%
-            </span>
-        </div>
-    </div>
-</div>
+<?php
+/**
+ * UTMTrack - View de Regras Automatizadas
+ * Arquivo: app/views/rules/index.php
+ * 
+ * VERSÃO MELHORADA - Outubro 2025
+ * - Adicionadas TODAS as métricas da UTMfy
+ * - Botões redesenhados sem emojis
+ */
 
-<!-- Lista de Regras -->
-<div class="card">
-    <div class="card-header">
-        <h2 class="card-title">⚙️ Minhas Regras Automatizadas</h2>
-        <button onclick="openCreateModal()" class="btn btn-primary">
-            ➕ Nova Regra
-        </button>
+// Debug
+if (!isset($adAccounts)) {
+    error_log("ERRO: \$adAccounts não está definido na view!");
+    $adAccounts = [];
+} else {
+    error_log("DEBUG: \$adAccounts tem " . count($adAccounts) . " contas");
+}
+?>
+
+<div class="main-content">
+    <div class="content-header" style="margin-bottom: 30px;">
+        <div>
+            <h1 style="font-size: 28px; font-weight: 700; color: #e2e8f0; margin: 0 0 8px 0;">
+                Regras Automatizadas
+            </h1>
+            <p style="color: #94a3b8; font-size: 14px; margin: 0;">
+                Automatize ações em campanhas baseadas em métricas de performance
+            </p>
+        </div>
     </div>
-    
-    <?php if (empty($rules)): ?>
-    <div class="empty-state">
-        <div class="empty-state-icon">🤖</div>
-        <div class="empty-state-title">Nenhuma regra configurada</div>
-        <p>Crie regras para automatizar ações em suas campanhas baseadas em métricas</p>
-        <button onclick="openCreateModal()" class="btn btn-primary" style="margin-top: 20px;">
-            ➕ Criar Primeira Regra
-        </button>
+
+    <!-- Estatísticas -->
+    <div class="metrics-grid" style="grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); margin-bottom: 30px;">
+        <div class="metric-card">
+            <div class="metric-label">Total de Regras</div>
+            <div class="metric-value">
+                <?= number_format($stats['total_rules'] ?? 0, 0, ',', '.') ?>
+            </div>
+        </div>
+        
+        <div class="metric-card">
+            <div class="metric-label">Regras Ativas</div>
+            <div class="metric-value" style="color: #10b981;">
+                <?= number_format($stats['active_rules'] ?? 0, 0, ',', '.') ?>
+            </div>
+        </div>
+        
+        <div class="metric-card">
+            <div class="metric-label">Total de Execuções</div>
+            <div class="metric-value">
+                <?= number_format($stats['total_executions'] ?? 0, 0, ',', '.') ?>
+            </div>
+        </div>
+        
+        <div class="metric-card">
+            <div class="metric-label">Taxa de Sucesso</div>
+            <div class="metric-value">
+                <?php 
+                $successRate = ($stats['total_executions'] ?? 0) > 0 
+                    ? (($stats['successful_executions'] ?? 0) / $stats['total_executions']) * 100 
+                    : 0;
+                ?>
+                <span style="color: <?= $successRate >= 80 ? '#10b981' : ($successRate >= 50 ? '#f59e0b' : '#ef4444') ?>">
+                    <?= number_format($successRate, 0) ?>%
+                </span>
+            </div>
+        </div>
     </div>
-    <?php else: ?>
-    <div style="overflow-x: auto;">
-        <table>
-            <thead>
-                <tr>
-                    <th>Nome</th>
-                    <th>Tipo</th>
-                    <th>Ação</th>
-                    <th>Condição</th>
-                    <th>Frequência</th>
-                    <th>Execuções</th>
-                    <th>Última Execução</th>
-                    <th>Status</th>
-                    <th>Ações</th>
-                </tr>
-            </thead>
-            <tbody>
-                <?php foreach ($rules as $rule): ?>
-                <tr>
-                    <td style="font-weight: 600;"><?= htmlspecialchars($rule['name']) ?></td>
-                    <td>
-                        <?php
-                        $types = [
-                            'campaign' => '📢 Campanha',
-                            'adset' => '🎯 Conjunto',
-                            'ad' => '📝 Anúncio'
-                        ];
-                        echo $types[$rule['target_type']] ?? $rule['target_type'];
-                        ?>
-                    </td>
-                    <td>
-                        <?php
-                        $actions = [
-                            'pause' => '<span style="color: #ef4444;">⏸ Pausar</span>',
-                            'activate' => '<span style="color: #10b981;">▶ Ativar</span>',
-                            'increase_budget' => '<span style="color: #3b82f6;">⬆ Aumentar</span>',
-                            'decrease_budget' => '<span style="color: #f59e0b;">⬇ Diminuir</span>'
-                        ];
-                        echo $actions[$rule['action']] ?? $rule['action'];
-                        ?>
-                    </td>
-                    <td>
-                        <?php
-                        $conditions = $rule['conditions'];
-                        $metrics = [
-                            'roas' => 'ROAS',
-                            'roi' => 'ROI',
-                            'conversions' => 'Conversões',
-                            'spend' => 'Gasto',
-                            'cpa' => 'CPA'
-                        ];
-                        $operators = [
-                            'less_than' => '<',
-                            'greater_than' => '>',
-                            'equals' => '=',
-                            'less_or_equal' => '≤',
-                            'greater_or_equal' => '≥'
-                        ];
-                        echo ($metrics[$conditions['metric']] ?? $conditions['metric']) . ' ' . 
-                             ($operators[$conditions['operator']] ?? $conditions['operator']) . ' ' . 
-                             $conditions['value'];
-                        ?>
-                    </td>
-                    <td>
-                        <?php
-                        $frequencies = [
-                            '15min' => 'A cada 15min',
-                            '30min' => 'A cada 30min',
-                            '1hour' => 'A cada 1h',
-                            '6hours' => 'A cada 6h',
-                            '12hours' => 'A cada 12h',
-                            '24hours' => 'A cada 24h'
-                        ];
-                        echo $frequencies[$rule['frequency']] ?? $rule['frequency'];
-                        ?>
-                    </td>
-                    <td>
-                        <?= number_format($rule['total_executions'] ?? 0, 0, ',', '.') ?>
-                        <span style="color: #10b981; font-size: 11px;">
-                            (<?= number_format($rule['successful_executions'] ?? 0, 0, ',', '.') ?> OK)
-                        </span>
-                    </td>
-                    <td>
-                        <?php if ($rule['last_execution_date']): ?>
-                            <?= date('d/m/Y H:i', strtotime($rule['last_execution_date'])) ?>
-                        <?php else: ?>
-                            <span style="color: #64748b;">Nunca</span>
-                        <?php endif; ?>
-                    </td>
-                    <td>
-                        <label class="switch">
-                            <input 
-                                type="checkbox" 
-                                <?= $rule['status'] === 'active' ? 'checked' : '' ?>
-                                onchange="toggleRule(<?= $rule['id'] ?>)"
-                            >
-                            <span class="slider"></span>
-                        </label>
-                    </td>
-                    <td>
-                        <button 
-                            onclick='viewLogs(<?= $rule['id'] ?>)' 
-                            class="btn" 
-                            style="padding: 6px 12px; font-size: 12px; background: #10b981; color: white;"
-                            title="Ver Logs"
-                        >
-                            📊
-                        </button>
-                        <button 
-                            onclick='editRule(<?= $rule['id'] ?>)' 
-                            class="btn" 
-                            style="padding: 6px 12px; font-size: 12px; background: #667eea; color: white;"
-                            title="Editar"
-                        >
-                            ✏️
-                        </button>
-                        <button 
-                            onclick='deleteRule(<?= $rule['id'] ?>, "<?= addslashes($rule['name']) ?>")' 
-                            class="btn" 
-                            style="padding: 6px 12px; font-size: 12px; background: #ef4444; color: white;"
-                            title="Deletar"
-                        >
-                            🗑️
-                        </button>
-                    </td>
-                </tr>
-                <?php endforeach; ?>
-            </tbody>
-        </table>
+
+    <!-- Lista de Regras -->
+    <div class="card">
+        <div class="card-header">
+            <h2 class="card-title">Minhas Regras Automatizadas</h2>
+            <button onclick="openCreateModal()" class="btn btn-primary">
+                Nova Regra
+            </button>
+        </div>
+        
+        <?php if (empty($rules)): ?>
+        <div class="empty-state">
+            <div class="empty-state-icon">🤖</div>
+            <div class="empty-state-title">Nenhuma regra configurada</div>
+            <p>Crie regras para automatizar ações em suas campanhas baseadas em métricas</p>
+            <button onclick="openCreateModal()" class="btn btn-primary" style="margin-top: 20px;">
+                Criar Primeira Regra
+            </button>
+        </div>
+        <?php else: ?>
+        <div style="overflow-x: auto;">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Nome</th>
+                        <th>Tipo</th>
+                        <th>Ação</th>
+                        <th>Condição</th>
+                        <th>Frequência</th>
+                        <th>Execuções</th>
+                        <th>Última Execução</th>
+                        <th>Status</th>
+                        <th>Ações</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php foreach ($rules as $rule): ?>
+                    <tr>
+                        <td style="font-weight: 600;"><?= htmlspecialchars($rule['name']) ?></td>
+                        <td>
+                            <?php
+                            $types = [
+                                'campaign' => 'Campanha',
+                                'adset' => 'Conjunto',
+                                'ad' => 'Anúncio'
+                            ];
+                            echo $types[$rule['target_type']] ?? $rule['target_type'];
+                            ?>
+                        </td>
+                        <td>
+                            <?php
+                            $actions = [
+                                'pause' => '<span style="color: #ef4444; font-weight: 600;">Pausar</span>',
+                                'activate' => '<span style="color: #10b981; font-weight: 600;">Ativar</span>',
+                                'increase_budget' => '<span style="color: #3b82f6; font-weight: 600;">Aumentar</span>',
+                                'decrease_budget' => '<span style="color: #f59e0b; font-weight: 600;">Diminuir</span>'
+                            ];
+                            echo $actions[$rule['action']] ?? $rule['action'];
+                            ?>
+                        </td>
+                        <td>
+                            <?php
+                            $conditions = $rule['conditions'];
+                            $metrics = [
+                                'spend' => 'Gasto',
+                                'cpa' => 'CPA',
+                                'roi' => 'ROI',
+                                'roas' => 'ROAS',
+                                'profit' => 'Lucro',
+                                'margin' => 'Margem',
+                                'cpc' => 'CPC',
+                                'budget' => 'Orçamento',
+                                'cpi' => 'CPI',
+                                'sales' => 'Vendas',
+                                'initiate_checkout' => 'ICs',
+                                'ctr' => 'CTR',
+                                'cpm' => 'CPM',
+                                'clicks' => 'Cliques',
+                                'conversions' => 'Conversões',
+                                'cost_per_conversion' => 'Custo/Conv.',
+                                'cpl' => 'CPL',
+                                'cpv' => 'CPV',
+                                'page_views' => 'Vis. Pág.'
+                            ];
+                            $operators = [
+                                'less_than' => '<',
+                                'greater_than' => '>',
+                                'equals' => '=',
+                                'less_or_equal' => '≤',
+                                'greater_or_equal' => '≥'
+                            ];
+                            echo ($metrics[$conditions['metric']] ?? $conditions['metric']) . ' ' . 
+                                 ($operators[$conditions['operator']] ?? $conditions['operator']) . ' ' . 
+                                 number_format($conditions['value'], 2, ',', '.');
+                            ?>
+                        </td>
+                        <td>
+                            <?php
+                            $frequencies = [
+                                '15min' => 'A cada 15min',
+                                '30min' => 'A cada 30min',
+                                '1hour' => 'A cada 1h',
+                                '6hours' => 'A cada 6h',
+                                '12hours' => 'A cada 12h',
+                                '24hours' => 'A cada 24h'
+                            ];
+                            echo $frequencies[$rule['frequency']] ?? $rule['frequency'];
+                            ?>
+                        </td>
+                        <td>
+                            <?= number_format($rule['total_executions'] ?? 0, 0, ',', '.') ?>
+                            <span style="color: #10b981; font-size: 11px;">
+                                (<?= number_format($rule['successful_executions'] ?? 0, 0, ',', '.') ?> OK)
+                            </span>
+                        </td>
+                        <td>
+                            <?php if ($rule['last_execution_date']): ?>
+                                <?= date('d/m/Y H:i', strtotime($rule['last_execution_date'])) ?>
+                            <?php else: ?>
+                                <span style="color: #64748b;">Nunca</span>
+                            <?php endif; ?>
+                        </td>
+                        <td>
+                            <label class="switch">
+                                <input 
+                                    type="checkbox" 
+                                    <?= $rule['status'] === 'active' ? 'checked' : '' ?>
+                                    onchange="toggleRule(<?= $rule['id'] ?>)"
+                                >
+                                <span class="slider"></span>
+                            </label>
+                        </td>
+                        <td>
+                            <div style="display: flex; gap: 8px;">
+                                <button 
+                                    onclick='viewLogs(<?= $rule['id'] ?>)' 
+                                    class="action-btn logs-btn"
+                                    title="Ver Logs"
+                                >
+                                    Logs
+                                </button>
+                                <button 
+                                    onclick='editRule(<?= $rule['id'] ?>)' 
+                                    class="action-btn edit-btn"
+                                    title="Editar"
+                                >
+                                    Editar
+                                </button>
+                                <button 
+                                    onclick='deleteRule(<?= $rule['id'] ?>, "<?= addslashes($rule['name']) ?>")' 
+                                    class="action-btn delete-btn"
+                                    title="Deletar"
+                                >
+                                    Deletar
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                    <?php endforeach; ?>
+                </tbody>
+            </table>
+        </div>
+        <?php endif; ?>
     </div>
-    <?php endif; ?>
 </div>
 
 <!-- Modal Criar/Editar Regra -->
@@ -222,7 +259,7 @@
         margin: auto;
     ">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px;">
-            <h2 id="modalTitle" style="color: white; font-size: 24px;">➕ Nova Regra</h2>
+            <h2 id="modalTitle" style="color: white; font-size: 24px;">Nova Regra</h2>
             <button onclick="closeModal()" style="
                 background: none;
                 border: none;
@@ -271,14 +308,15 @@
                 
                 <div>
                     <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #e2e8f0;">
-                        Conta de Anúncio (Opcional)
+                        Conta de Anúncio *
                     </label>
                     <select 
                         id="rule_ad_account" 
                         name="ad_account_id"
+                        required
                         style="width: 100%; padding: 12px; background: #0f172a; border: 1px solid #334155; border-radius: 8px; color: #e2e8f0; font-size: 14px;"
                     >
-                        <option value="">Todas as contas</option>
+                        <option value="">Selecione uma conta</option>
                         <?php foreach ($adAccounts as $account): ?>
                         <option value="<?= $account['id'] ?>">
                             [<?= strtoupper($account['platform']) ?>] <?= htmlspecialchars($account['account_name']) ?>
@@ -300,9 +338,9 @@
                         style="width: 100%; padding: 12px; background: #0f172a; border: 1px solid #334155; border-radius: 8px; color: #e2e8f0; font-size: 14px;"
                     >
                         <option value="">Selecione...</option>
-                        <option value="campaign">📢 Campanha</option>
-                        <option value="adset">🎯 Conjunto de Anúncios</option>
-                        <option value="ad">📝 Anúncio</option>
+                        <option value="campaign">Campanha</option>
+                        <option value="adset">Conjunto de Anúncios</option>
+                        <option value="ad">Anúncio</option>
                     </select>
                 </div>
                 
@@ -317,16 +355,16 @@
                         style="width: 100%; padding: 12px; background: #0f172a; border: 1px solid #334155; border-radius: 8px; color: #e2e8f0; font-size: 14px;"
                     >
                         <option value="">Selecione...</option>
-                        <option value="pause">⏸ Pausar</option>
-                        <option value="activate">▶ Ativar</option>
-                        <option value="increase_budget">⬆ Aumentar Orçamento</option>
-                        <option value="decrease_budget">⬇ Diminuir Orçamento</option>
+                        <option value="pause">Pausar</option>
+                        <option value="activate">Ativar</option>
+                        <option value="increase_budget">Aumentar Orçamento</option>
+                        <option value="decrease_budget">Diminuir Orçamento</option>
                     </select>
                 </div>
             </div>
             
             <div style="background: #0f172a; border: 1px solid #334155; border-radius: 12px; padding: 20px; margin-bottom: 25px;">
-                <h3 style="color: #e2e8f0; margin-bottom: 15px; font-size: 16px;">🎯 Condições</h3>
+                <h3 style="color: #e2e8f0; margin-bottom: 15px; font-size: 16px;">Condições</h3>
                 
                 <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px;">
                     <div>
@@ -340,13 +378,25 @@
                             style="width: 100%; padding: 10px; background: #1e293b; border: 1px solid #334155; border-radius: 8px; color: #e2e8f0; font-size: 14px;"
                         >
                             <option value="">Selecione...</option>
+                            <option value="spend">Gasto</option>
+                            <option value="cpa">CPA</option>
+                            <option value="roi">ROI</option>
                             <option value="roas">ROAS</option>
-                            <option value="roi">ROI (%)</option>
-                            <option value="conversions">Conversões</option>
-                            <option value="spend">Gasto (R$)</option>
-                            <option value="cpa">CPA (R$)</option>
+                            <option value="profit">Lucro</option>
+                            <option value="margin">Margem de Lucro</option>
+                            <option value="cpc">CPC</option>
+                            <option value="budget">Orçamento</option>
+                            <option value="cpi">CPI</option>
+                            <option value="sales">Vendas</option>
+                            <option value="initiate_checkout">ICs (Iniciar Compra)</option>
+                            <option value="ctr">CTR</option>
+                            <option value="cpm">CPM</option>
                             <option value="clicks">Cliques</option>
-                            <option value="ctr">CTR (%)</option>
+                            <option value="conversions">Conversões</option>
+                            <option value="cost_per_conversion">Custo por Conversa</option>
+                            <option value="cpl">CPL</option>
+                            <option value="cpv">CPV</option>
+                            <option value="page_views">Visualizações de Página</option>
                         </select>
                     </div>
                     
@@ -443,15 +493,16 @@
                     Cancelar
                 </button>
                 <button type="submit" class="btn btn-primary">
-                    💾 Salvar Regra
+                    Salvar Regra
                 </button>
             </div>
         </form>
     </div>
 </div>
 
-<!-- Estilos do Switch -->
+<!-- Estilos -->
 <style>
+/* Switch */
 .switch {
     position: relative;
     display: inline-block;
@@ -496,12 +547,53 @@ input:checked + .slider {
 input:checked + .slider:before {
     transform: translateX(26px);
 }
+
+/* Action Buttons */
+.action-btn {
+    padding: 8px 16px;
+    font-size: 13px;
+    font-weight: 600;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.logs-btn {
+    background: #10b981;
+    color: white;
+}
+
+.logs-btn:hover {
+    background: #059669;
+    transform: translateY(-1px);
+}
+
+.edit-btn {
+    background: #667eea;
+    color: white;
+}
+
+.edit-btn:hover {
+    background: #5568d3;
+    transform: translateY(-1px);
+}
+
+.delete-btn {
+    background: #ef4444;
+    color: white;
+}
+
+.delete-btn:hover {
+    background: #dc2626;
+    transform: translateY(-1px);
+}
 </style>
 
 <script>
 // Abrir modal de criação
 function openCreateModal() {
-    document.getElementById('modalTitle').textContent = '➕ Nova Regra';
+    document.getElementById('modalTitle').textContent = 'Nova Regra';
     document.getElementById('ruleForm').reset();
     document.getElementById('rule_id').value = '';
     document.getElementById('ruleModal').style.display = 'flex';
@@ -510,13 +602,13 @@ function openCreateModal() {
 // Editar regra
 async function editRule(ruleId) {
     try {
-        const response = await fetch(`index.php?page=rule-get&id=${ruleId}`);
+        const response = await fetch(`index.php?page=regra-get&id=${ruleId}`);
         const result = await response.json();
         
         if (result.success) {
             const rule = result.rule;
             
-            document.getElementById('modalTitle').textContent = '✏️ Editar Regra';
+            document.getElementById('modalTitle').textContent = 'Editar Regra';
             document.getElementById('rule_id').value = rule.id;
             document.getElementById('rule_name').value = rule.name;
             document.getElementById('rule_product').value = rule.product_id || '';
@@ -541,7 +633,7 @@ async function editRule(ruleId) {
 
 // Ver logs
 function viewLogs(ruleId) {
-    window.location.href = `index.php?page=rule-logs&id=${ruleId}`;
+    window.location.href = `index.php?page=regra-logs&id=${ruleId}`;
 }
 
 // Salvar regra
@@ -550,7 +642,7 @@ async function saveRule(event) {
     
     const formData = new FormData(event.target);
     const ruleId = formData.get('rule_id');
-    const url = ruleId ? 'index.php?page=rule-update' : 'index.php?page=rule-create';
+    const url = ruleId ? 'index.php?page=regra-update' : 'index.php?page=regra-create';
     
     try {
         const response = await fetch(url, {
@@ -582,7 +674,7 @@ async function deleteRule(ruleId, ruleName) {
         const formData = new FormData();
         formData.append('rule_id', ruleId);
         
-        const response = await fetch('index.php?page=rule-delete', {
+        const response = await fetch('index.php?page=regra-delete', {
             method: 'POST',
             body: formData
         });
@@ -606,7 +698,7 @@ async function toggleRule(ruleId) {
         const formData = new FormData();
         formData.append('rule_id', ruleId);
         
-        const response = await fetch('index.php?page=rule-toggle', {
+        const response = await fetch('index.php?page=regra-toggle', {
             method: 'POST',
             body: formData
         });

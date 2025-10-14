@@ -20,6 +20,18 @@
     
     <div class="metric-card">
         <div class="metric-label">
+            🤖 Auto-Criados
+        </div>
+        <div class="metric-value">
+            <?= number_format($stats['auto_created_products'] ?? 0, 0, ',', '.') ?>
+        </div>
+        <div class="metric-info" style="color: #3b82f6; font-size: 12px; margin-top: 5px;">
+            Criados automaticamente
+        </div>
+    </div>
+    
+    <div class="metric-card">
+        <div class="metric-label">
             💰 Preço Médio
         </div>
         <div class="metric-value">
@@ -50,7 +62,7 @@
     <div class="empty-state">
         <div class="empty-state-icon">📦</div>
         <div class="empty-state-title">Nenhum produto cadastrado</div>
-        <p>Adicione seus produtos para começar a rastrear vendas</p>
+        <p>Crie produtos manualmente ou eles serão criados automaticamente ao receber vendas</p>
         <button onclick="openCreateModal()" class="btn btn-primary" style="margin-top: 20px;">
             ➕ Criar Primeiro Produto
         </button>
@@ -61,6 +73,7 @@
             <thead>
                 <tr>
                     <th>Nome</th>
+                    <th>Origem</th>
                     <th>SKU</th>
                     <th>Preço</th>
                     <th>Custo</th>
@@ -75,24 +88,37 @@
                 <?php foreach ($products as $product): ?>
                 <tr>
                     <td style="font-weight: 600;"><?= htmlspecialchars($product['name']) ?></td>
-                    <td><?= htmlspecialchars($product['sku'] ?? '-') ?></td>
-                    <td>R$ <?= number_format($product['price'], 2, ',', '.') ?></td>
-                    <td>R$ <?= number_format($product['cost'], 2, ',', '.') ?></td>
                     <td>
-                        <span style="color: <?= $product['margin'] >= 30 ? '#10b981' : ($product['margin'] >= 15 ? '#f59e0b' : '#ef4444') ?>">
+                        <?php if (!empty($product['auto_created']) && $product['auto_created'] == 1): ?>
+                            <span class="badge" style="background: #3b82f620; color: #3b82f6;">
+                                🤖 AUTO
+                            </span>
+                        <?php else: ?>
+                            <span class="badge" style="background: #10b98120; color: #10b981;">
+                                ✏️ MANUAL
+                            </span>
+                        <?php endif; ?>
+                    </td>
+                    <td style="font-family: monospace; font-size: 13px; color: #94a3b8;">
+                        <?= htmlspecialchars($product['sku'] ?? '-') ?>
+                    </td>
+                    <td style="color: #10b981; font-weight: 600;">
+                        R$ <?= number_format($product['price'], 2, ',', '.') ?>
+                    </td>
+                    <td style="color: #ef4444;">
+                        R$ <?= number_format($product['cost'], 2, ',', '.') ?>
+                    </td>
+                    <td>
+                        <span style="color: <?= $product['margin'] >= 30 ? '#10b981' : ($product['margin'] >= 15 ? '#f59e0b' : '#ef4444') ?>; font-weight: 600;">
                             <?= number_format($product['margin'], 1, ',', '.') ?>%
                         </span>
                     </td>
                     <td><?= number_format($product['total_sales'] ?? 0, 0, ',', '.') ?></td>
-                    <td>R$ <?= number_format($product['total_revenue'] ?? 0, 2, ',', '.') ?></td>
+                    <td style="color: #3b82f6; font-weight: 600;">
+                        R$ <?= number_format($product['total_revenue'] ?? 0, 2, ',', '.') ?>
+                    </td>
                     <td>
-                        <span class="badge badge-<?= $product['status'] === 'active' ? 'success' : 'warning' ?>" style="
-                            display: inline-block;
-                            padding: 4px 12px;
-                            border-radius: 12px;
-                            font-size: 12px;
-                            font-weight: 600;
-                        ">
+                        <span class="badge badge-<?= $product['status'] === 'active' ? 'success' : 'warning' ?>">
                             <?= $product['status'] === 'active' ? '✓ Ativo' : '⏸ Inativo' ?>
                         </span>
                     </td>
@@ -273,7 +299,7 @@ function openCreateModal() {
 // Editar produto
 async function editProduct(productId) {
     try {
-        const response = await fetch(`index.php?page=product-get&id=${productId}`);
+        const response = await fetch(`index.php?page=product-show&id=${productId}`);
         const result = await response.json();
         
         if (result.success) {
@@ -302,10 +328,10 @@ async function saveProduct(event) {
     
     const formData = new FormData(event.target);
     const productId = formData.get('product_id');
-    const url = productId ? 'index.php?page=product-update' : 'index.php?page=product-create';
+    const page = productId ? 'product-update' : 'product-create';
     
     try {
-        const response = await fetch(url, {
+        const response = await fetch(`index.php?page=${page}`, {
             method: 'POST',
             body: formData
         });

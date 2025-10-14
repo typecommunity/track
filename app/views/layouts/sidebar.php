@@ -192,7 +192,7 @@
 }
 
 .menu-divider {
-    margin-top: 30px;
+    margin-top: 20px;
     padding-top: 20px;
     border-top: 1px solid #334155;
 }
@@ -580,7 +580,7 @@
                 [
                     'label' => 'Regras',
                     'page' => 'regras',
-                    'icon' => '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg>'
+                    'icon' => '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path><circle cx="12" cy="16" r="1"></circle><line x1="8" y1="16" x2="8.01" y2="16"></line><line x1="16" y1="16" x2="16.01" y2="16"></line></svg>'
                 ],
                 [
                     'label' => 'Taxas',
@@ -614,7 +614,43 @@
             </li>
             <?php endforeach; ?>
             
-            <li class="menu-divider">
+            <!-- DIVISOR ANTES DA AJUDA -->
+            <li class="menu-divider"></li>
+            
+            <!-- MENU DE AJUDA -->
+            <?php
+            $helpMenuItems = [
+                [
+                    'label' => 'Ajuda',
+                    'page' => 'ajuda',
+                    'icon' => '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>'
+                ],
+                [
+                    'label' => 'Config. Cron Jobs',
+                    'page' => 'help-crons',
+                    'icon' => '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>'
+                ],
+            ];
+            
+            foreach ($helpMenuItems as $item):
+                $isActive = $currentPage === $item['page'] || 
+                           (strpos($currentPage, 'help-') === 0 && $item['page'] === 'ajuda');
+            ?>
+            <li>
+                <a href="index.php?page=<?= $item['page'] ?>" class="menu-item <?= $isActive ? 'active' : '' ?>">
+                    <span class="menu-icon">
+                        <?= $item['icon'] ?>
+                    </span>
+                    <span class="menu-label"><?= $item['label'] ?></span>
+                    <span class="menu-tooltip"><?= $item['label'] ?></span>
+                </a>
+            </li>
+            <?php endforeach; ?>
+            
+            <!-- DIVISOR ANTES DO LOGOUT -->
+            <li class="menu-divider"></li>
+            
+            <li>
                 <a href="index.php?page=logout" class="menu-item">
                     <span class="menu-icon">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -655,6 +691,36 @@
                     break;
                 case 'campanhas':
                     $breadcrumbs = [['label' => 'Campanhas', 'url' => '']];
+                    break;
+                case 'regras':
+                    $breadcrumbs = [['label' => 'Regras Automatizadas', 'url' => '']];
+                    break;
+                case 'ajuda':
+                    $breadcrumbs = [['label' => 'Central de Ajuda', 'url' => '']];
+                    break;
+                case 'help-crons':
+                    $breadcrumbs = [
+                        ['label' => 'Ajuda', 'url' => 'index.php?page=ajuda'],
+                        ['label' => 'Configuração de Cron Jobs', 'url' => '']
+                    ];
+                    break;
+                case 'help-webhooks':
+                    $breadcrumbs = [
+                        ['label' => 'Ajuda', 'url' => 'index.php?page=ajuda'],
+                        ['label' => 'Configurar Webhooks', 'url' => '']
+                    ];
+                    break;
+                case 'help-meta-ads':
+                    $breadcrumbs = [
+                        ['label' => 'Ajuda', 'url' => 'index.php?page=ajuda'],
+                        ['label' => 'Integração Meta Ads', 'url' => '']
+                    ];
+                    break;
+                case 'help-faq':
+                    $breadcrumbs = [
+                        ['label' => 'Ajuda', 'url' => 'index.php?page=ajuda'],
+                        ['label' => 'FAQ', 'url' => '']
+                    ];
                     break;
                 default:
                     $breadcrumbs = [['label' => ucfirst($currentPage), 'url' => '']];
