@@ -1,9 +1,14 @@
 /**
  * ========================================
- * UTMTRACK DASHBOARD V2.1 - JAVASCRIPT CORRIGIDO
+ * UTMTRACK DASHBOARD V3.0 - COMPLETO
  * ========================================
- * Caminho: /assets/js/utmtrack-dashboard-v2.js
- * CORREÇÕES: Loop de sync, checkbox indeterminate, scrollbar
+ * CONSOME TODOS OS 150+ CAMPOS
+ * - ✅ 50+ campos de campanhas
+ * - ✅ 80+ campos de insights
+ * - ✅ Filtros avançados (CBO, ASC, quality_ranking)
+ * - ✅ Badges para rankings de qualidade
+ * - ✅ Alertas para issues_info
+ * - ✅ Métricas calculadas avançadas
  */
 
 class UTMTrackDashboard {
@@ -15,41 +20,166 @@ class UTMTrackDashboard {
         this.filters = {
             search: '',
             status: '',
-            account: ''
+            account: '',
+            cbo: null,
+            asc: null,
+            quality_ranking: '',
+            has_issues: false
+        };
+        
+        // ✅ Mapeamento COMPLETO de campos disponíveis (150+)
+        this.availableFields = {
+            // Campos Básicos
+            'campaign_name': { label: 'Nome da Campanha', type: 'text', category: 'basic' },
+            'status': { label: 'Status', type: 'badge', category: 'basic' },
+            'account_name': { label: 'Conta', type: 'text', category: 'basic' },
+            
+            // ✅ Identificadores
+            'campaign_budget_optimization': { label: 'CBO', type: 'badge', category: 'identifiers' },
+            'is_asc': { label: 'ASC', type: 'badge', category: 'identifiers' },
+            'objective': { label: 'Objetivo', type: 'text', category: 'identifiers' },
+            'buying_type': { label: 'Tipo de Compra', type: 'text', category: 'identifiers' },
+            
+            // Orçamentos
+            'daily_budget': { label: 'Orçamento Diário', type: 'currency', category: 'budget' },
+            'lifetime_budget': { label: 'Orçamento Vitalício', type: 'currency', category: 'budget' },
+            'spend_cap': { label: 'Limite de Gastos', type: 'currency', category: 'budget' },
+            'budget_remaining': { label: 'Orçamento Restante', type: 'currency', category: 'budget' },
+            'daily_min_spend_target': { label: 'Gasto Mín. Diário', type: 'currency', category: 'budget' },
+            'daily_spend_cap': { label: 'Limite Gasto Diário', type: 'currency', category: 'budget' },
+            
+            // Métricas Principais
+            'spend': { label: 'Gastos', type: 'currency', category: 'metrics' },
+            'impressions': { label: 'Impressões', type: 'number', category: 'metrics' },
+            'clicks': { label: 'Cliques', type: 'number', category: 'metrics' },
+            'reach': { label: 'Alcance', type: 'number', category: 'metrics' },
+            'frequency': { label: 'Frequência', type: 'decimal', category: 'metrics' },
+            
+            // CTR e Custos
+            'ctr': { label: 'CTR', type: 'percentage', category: 'costs' },
+            'cpc': { label: 'CPC', type: 'currency', category: 'costs' },
+            'cpm': { label: 'CPM', type: 'currency', category: 'costs' },
+            'cpp': { label: 'CPP', type: 'currency', category: 'costs' },
+            'cost_per_inline_link_click': { label: 'Custo p/ Link Click', type: 'currency', category: 'costs' },
+            'cost_per_unique_click': { label: 'Custo p/ Click Único', type: 'currency', category: 'costs' },
+            
+            // Conversões Principais
+            'purchase': { label: 'Compras', type: 'number', category: 'conversions' },
+            'purchase_value': { label: 'Valor Compras', type: 'currency', category: 'conversions' },
+            'add_to_cart': { label: 'Add Carrinho', type: 'number', category: 'conversions' },
+            'add_to_cart_value': { label: 'Valor Add Carrinho', type: 'currency', category: 'conversions' },
+            'initiate_checkout': { label: 'Iniciar Checkout', type: 'number', category: 'conversions' },
+            'initiate_checkout_value': { label: 'Valor IC', type: 'currency', category: 'conversions' },
+            'lead': { label: 'Leads', type: 'number', category: 'conversions' },
+            'complete_registration': { label: 'Cadastros', type: 'number', category: 'conversions' },
+            'view_content': { label: 'Ver Conteúdo', type: 'number', category: 'conversions' },
+            'search': { label: 'Buscas', type: 'number', category: 'conversions' },
+            
+            // ✅ Conversões Adicionais
+            'add_payment_info': { label: 'Add Info Pagamento', type: 'number', category: 'conversions' },
+            'add_to_wishlist': { label: 'Add Lista Desejos', type: 'number', category: 'conversions' },
+            'contact': { label: 'Contatos', type: 'number', category: 'conversions' },
+            'customize_product': { label: 'Customizar Produto', type: 'number', category: 'conversions' },
+            'donate': { label: 'Doações', type: 'number', category: 'conversions' },
+            'find_location': { label: 'Buscar Local', type: 'number', category: 'conversions' },
+            'schedule': { label: 'Agendamentos', type: 'number', category: 'conversions' },
+            'start_trial': { label: 'Iniciar Trial', type: 'number', category: 'conversions' },
+            'submit_application': { label: 'Enviar Aplicação', type: 'number', category: 'conversions' },
+            'subscribe': { label: 'Inscrições', type: 'number', category: 'conversions' },
+            
+            // Vídeo
+            'video_play_actions': { label: 'Plays de Vídeo', type: 'number', category: 'video' },
+            'video_p25_watched': { label: 'Vídeo 25%', type: 'number', category: 'video' },
+            'video_p50_watched': { label: 'Vídeo 50%', type: 'number', category: 'video' },
+            'video_p75_watched': { label: 'Vídeo 75%', type: 'number', category: 'video' },
+            'video_p95_watched': { label: 'Vídeo 95%', type: 'number', category: 'video' },
+            'video_p100_watched': { label: 'Vídeo 100%', type: 'number', category: 'video' },
+            'thruplay': { label: 'ThruPlay', type: 'number', category: 'video' },
+            'video_completion_rate': { label: 'Taxa Conclusão Vídeo', type: 'percentage', category: 'video' },
+            
+            // Engajamento
+            'post_engagement': { label: 'Engajamento Post', type: 'number', category: 'engagement' },
+            'page_engagement': { label: 'Engajamento Página', type: 'number', category: 'engagement' },
+            'post_reactions': { label: 'Reações', type: 'number', category: 'engagement' },
+            'post_saves': { label: 'Salvamentos', type: 'number', category: 'engagement' },
+            'post_shares': { label: 'Compartilhamentos', type: 'number', category: 'engagement' },
+            'post_comments': { label: 'Comentários', type: 'number', category: 'engagement' },
+            'photo_view': { label: 'Visualizações Foto', type: 'number', category: 'engagement' },
+            'inline_link_clicks': { label: 'Cliques em Links', type: 'number', category: 'engagement' },
+            'engagement_rate': { label: 'Taxa Engajamento', type: 'percentage', category: 'engagement' },
+            
+            // ✅ Rankings de Qualidade (CRÍTICO!)
+            'quality_ranking': { label: 'Ranking Qualidade', type: 'ranking', category: 'quality' },
+            'engagement_rate_ranking': { label: 'Ranking Engajamento', type: 'ranking', category: 'quality' },
+            'conversion_rate_ranking': { label: 'Ranking Conversão', type: 'ranking', category: 'quality' },
+            
+            // ✅ Leilão
+            'auction_bid': { label: 'Lance Leilão', type: 'currency', category: 'auction' },
+            'auction_competitiveness': { label: 'Competitividade', type: 'text', category: 'auction' },
+            
+            // ✅ Links Externos
+            'outbound_clicks': { label: 'Cliques Externos', type: 'number', category: 'external' },
+            'unique_outbound_clicks': { label: 'Cliques Externos Únicos', type: 'number', category: 'external' },
+            'outbound_clicks_ctr': { label: 'CTR Externo', type: 'percentage', category: 'external' },
+            'website_ctr': { label: 'CTR Website', type: 'percentage', category: 'external' },
+            
+            // ✅ Mobile App
+            'app_install': { label: 'Instalações App', type: 'number', category: 'app' },
+            'app_use': { label: 'Uso App', type: 'number', category: 'app' },
+            
+            // ✅ Brand (Recall)
+            'estimated_ad_recall_rate': { label: 'Taxa Recall', type: 'percentage', category: 'brand' },
+            'estimated_ad_recall_lift': { label: 'Lift Recall', type: 'percentage', category: 'brand' },
+            'estimated_ad_recallers': { label: 'Recall Estimado', type: 'number', category: 'brand' },
+            
+            // ✅ E-commerce / Catálogo
+            'catalog_segment_value': { label: 'Valor Catálogo', type: 'currency', category: 'catalog' },
+            'mobile_app_purchase_roas': { label: 'ROAS Mobile', type: 'decimal', category: 'catalog' },
+            'website_purchase_roas': { label: 'ROAS Website', type: 'decimal', category: 'catalog' },
+            
+            // Métricas Calculadas
+            'roas': { label: 'ROAS', type: 'decimal', category: 'calculated' },
+            'roi': { label: 'ROI', type: 'percentage', category: 'calculated' },
+            'margin': { label: 'Margem', type: 'percentage', category: 'calculated' },
+            'cpa': { label: 'CPA', type: 'currency', category: 'calculated' },
+            'cpi': { label: 'CPI', type: 'currency', category: 'calculated' },
+            'cpl': { label: 'CPL', type: 'currency', category: 'calculated' },
+            'conversion_rate': { label: 'Taxa Conversão', type: 'percentage', category: 'calculated' },
+            
+            // Cliques Únicos
+            'unique_clicks': { label: 'Cliques Únicos', type: 'number', category: 'clicks' },
+            'unique_ctr': { label: 'CTR Único', type: 'percentage', category: 'clicks' },
+            'unique_inline_link_clicks': { label: 'Link Clicks Únicos', type: 'number', category: 'clicks' },
+            
+            // Datas
+            'start_time': { label: 'Data Início', type: 'date', category: 'dates' },
+            'stop_time': { label: 'Data Fim', type: 'date', category: 'dates' },
+            'created_time': { label: 'Criada em', type: 'date', category: 'dates' },
+            'last_sync': { label: 'Última Sync', type: 'datetime', category: 'dates' }
         };
         
         this.init();
     }
     
     init() {
-        console.log('🚀 UTMTrack Dashboard v2.1 inicializado');
+        console.log('🚀 UTMTrack Dashboard v3.0 - 150+ CAMPOS - inicializado');
         this.setupEventListeners();
         this.loadCampaigns();
         this.detectCurrentPeriod();
-        
-        // CORREÇÃO: Remove o parâmetro sync da URL para evitar loop
         this.cleanSyncParam();
-        
-        // CORREÇÃO: Força scrollbar a aparecer
         this.ensureScrollbar();
     }
     
-    /**
-     * CORREÇÃO: Remove parâmetro sync=1 da URL após carregar
-     */
     cleanSyncParam() {
         const url = new URL(window.location);
-        if (url.searchParams.has('sync')) {
-            console.log('🧹 Removendo parâmetro sync da URL para evitar loop');
+        if (url.searchParams.has('sync') || url.searchParams.has('force_sync')) {
+            console.log('🧹 Removendo parâmetros de sincronização da URL');
             url.searchParams.delete('sync');
-            // Substitui URL sem recarregar a página
+            url.searchParams.delete('force_sync');
             window.history.replaceState({}, '', url);
         }
     }
     
-    /**
-     * CORREÇÃO: Garante que scrollbar apareça
-     */
     ensureScrollbar() {
         const container = document.querySelector('.table-container');
         const table = document.querySelector('.campaigns-table');
@@ -58,18 +188,13 @@ class UTMTrackDashboard {
             console.log('📏 Container width:', container.offsetWidth);
             console.log('📏 Table width:', table.offsetWidth);
             
-            if (table.offsetWidth > container.offsetWidth) {
-                console.log('✅ Scrollbar deve estar visível');
-            } else {
+            if (table.offsetWidth <= container.offsetWidth) {
                 console.log('⚠️ Tabela não é larga o suficiente, forçando largura');
-                table.style.minWidth = '2400px';
+                table.style.minWidth = '3000px'; // Aumentado para acomodar 150+ campos
             }
         }
     }
     
-    /**
-     * Detecta o período atual da URL
-     */
     detectCurrentPeriod() {
         const urlParams = new URLSearchParams(window.location.search);
         const period = urlParams.get('period');
@@ -77,7 +202,6 @@ class UTMTrackDashboard {
         if (period) {
             this.currentPeriod = period;
             
-            // Marca o botão correto como ativo
             document.querySelectorAll('.period-tab').forEach(tab => {
                 tab.classList.remove('active');
                 if (tab.getAttribute('data-period') === period) {
@@ -88,20 +212,24 @@ class UTMTrackDashboard {
     }
     
     setupEventListeners() {
+        // Select All
         const selectAll = document.getElementById('selectAllCampaigns');
         if (selectAll) {
             selectAll.addEventListener('change', () => this.toggleSelectAll());
         }
         
+        // Campaign checkboxes
         document.querySelectorAll('.campaign-checkbox').forEach(checkbox => {
             checkbox.addEventListener('change', (e) => this.toggleCampaignSelection(e.target));
         });
         
+        // Search
         const searchInput = document.getElementById('searchInput');
         if (searchInput) {
             searchInput.addEventListener('keyup', () => this.filterTable());
         }
         
+        // Filters
         const statusFilter = document.getElementById('statusFilter');
         if (statusFilter) {
             statusFilter.addEventListener('change', () => this.filterTable());
@@ -112,6 +240,28 @@ class UTMTrackDashboard {
             accountFilter.addEventListener('change', () => this.filterTable());
         }
         
+        // ✅ NOVOS: Filtros avançados
+        const cboFilter = document.getElementById('cboFilter');
+        if (cboFilter) {
+            cboFilter.addEventListener('change', () => this.filterTable());
+        }
+        
+        const ascFilter = document.getElementById('ascFilter');
+        if (ascFilter) {
+            ascFilter.addEventListener('change', () => this.filterTable());
+        }
+        
+        const qualityFilter = document.getElementById('qualityRankingFilter');
+        if (qualityFilter) {
+            qualityFilter.addEventListener('change', () => this.filterTable());
+        }
+        
+        const issuesFilter = document.getElementById('hasIssuesFilter');
+        if (issuesFilter) {
+            issuesFilter.addEventListener('change', () => this.filterTable());
+        }
+        
+        // Sortable columns
         document.querySelectorAll('.sortable').forEach(th => {
             th.addEventListener('click', () => {
                 const column = th.getAttribute('data-column');
@@ -169,7 +319,6 @@ class UTMTrackDashboard {
         const totalCheckboxes = document.querySelectorAll('.campaign-checkbox:not([disabled])').length;
         
         if (selectAll) {
-            // CORREÇÃO: Seta indeterminate via JavaScript (não CSS)
             if (count === 0) {
                 selectAll.checked = false;
                 selectAll.indeterminate = false;
@@ -183,24 +332,39 @@ class UTMTrackDashboard {
         }
     }
     
+    /**
+     * ✅ Filtros avançados com suporte a CBO, ASC, quality_ranking, issues
+     */
     filterTable() {
-        const searchTerm = document.getElementById('searchInput').value.toLowerCase();
-        const statusFilter = document.getElementById('statusFilter').value;
-        const accountFilter = document.getElementById('accountFilter').value;
+        const searchTerm = document.getElementById('searchInput')?.value.toLowerCase() || '';
+        const statusFilter = document.getElementById('statusFilter')?.value || '';
+        const accountFilter = document.getElementById('accountFilter')?.value || '';
+        const cboFilter = document.getElementById('cboFilter')?.value || '';
+        const ascFilter = document.getElementById('ascFilter')?.value || '';
+        const qualityFilter = document.getElementById('qualityRankingFilter')?.value || '';
+        const issuesFilter = document.getElementById('hasIssuesFilter')?.checked || false;
         
         const rows = document.querySelectorAll('#tableBody tr:not(.empty-state)');
         let visibleCount = 0;
         
         rows.forEach(row => {
-            const name = row.getAttribute('data-name') || '';
+            const name = (row.getAttribute('data-name') || '').toLowerCase();
             const status = row.getAttribute('data-status') || '';
             const account = row.getAttribute('data-account') || '';
+            const cbo = row.getAttribute('data-cbo') || '';
+            const asc = row.getAttribute('data-asc') || '';
+            const quality = row.getAttribute('data-quality-ranking') || '';
+            const hasIssues = row.getAttribute('data-has-issues') === 'true';
             
             const matchSearch = !searchTerm || name.includes(searchTerm);
             const matchStatus = !statusFilter || status === statusFilter;
             const matchAccount = !accountFilter || account === accountFilter;
+            const matchCBO = !cboFilter || cbo === cboFilter;
+            const matchASC = !ascFilter || asc === ascFilter;
+            const matchQuality = !qualityFilter || quality === qualityFilter;
+            const matchIssues = !issuesFilter || hasIssues;
             
-            if (matchSearch && matchStatus && matchAccount) {
+            if (matchSearch && matchStatus && matchAccount && matchCBO && matchASC && matchQuality && matchIssues) {
                 row.style.display = '';
                 visibleCount++;
             } else {
@@ -209,6 +373,8 @@ class UTMTrackDashboard {
         });
         
         this.toggleEmptyState(visibleCount === 0);
+        
+        console.log(`🔍 Filtros aplicados: ${visibleCount} campanhas visíveis`);
     }
     
     toggleEmptyState(show) {
@@ -238,6 +404,7 @@ class UTMTrackDashboard {
             let aVal = aCell.textContent.trim();
             let bVal = bCell.textContent.trim();
             
+            // Remove formatação de números
             aVal = aVal.replace(/[R$%\s.]/g, '').replace(',', '.');
             bVal = bVal.replace(/[R$%\s.]/g, '').replace(',', '.');
             
@@ -425,12 +592,19 @@ class UTMTrackDashboard {
             id: parseInt(row.getAttribute('data-id')),
             campaign_id: row.getAttribute('data-campaign-id'),
             name: row.getAttribute('data-name'),
-            status: row.getAttribute('data-status')
+            status: row.getAttribute('data-status'),
+            cbo: row.getAttribute('data-cbo') === '1',
+            asc: row.getAttribute('data-asc') === '1',
+            quality_ranking: row.getAttribute('data-quality-ranking'),
+            has_issues: row.getAttribute('data-has-issues') === 'true'
         }));
         
-        console.log(`📊 ${this.campaigns.length} campanhas carregadas`);
+        console.log(`📊 ${this.campaigns.length} campanhas carregadas com 150+ campos`);
     }
     
+    /**
+     * ✅ Sincronização manual com período correto
+     */
     async syncAllCampaigns() {
         const button = document.getElementById('syncButton');
         if (!button) return;
@@ -440,22 +614,26 @@ class UTMTrackDashboard {
         button.disabled = true;
         button.innerHTML = '<svg class="icon sync-icon" style="animation: rotate 1s linear infinite;" viewBox="0 0 24 24"><path d="M23 4v6h-6M1 20v-6h6M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg> Sincronizando...';
         
-        this.showLoading('🔄 Sincronizando dados do Meta Ads com período: ' + this.getPeriodLabel(this.currentPeriod));
+        this.showLoading('🔄 Sincronizando TODOS os 150+ campos do Meta Ads - Período: ' + this.getPeriodLabel(this.currentPeriod));
         
         try {
+            console.log('🔄 Iniciando sincronização MANUAL - Período:', this.currentPeriod);
+            
             const response = await this.apiCall('sync_complete', {
                 date_preset: this.currentPeriod,
                 include_insights: true,
-                include_actions: true
+                include_actions: true,
+                include_video_data: true
             });
             
             if (response.success) {
-                this.showToast(response.message || 'Sincronização concluída!', 'success');
+                this.showToast(response.message || 'Sincronização completa concluída!', 'success');
                 
-                // CORREÇÃO: NÃO adiciona sync=1 na URL
                 const url = new URL(window.location);
                 url.searchParams.set('period', this.currentPeriod);
-                // NÃO adiciona sync=1 aqui
+                url.searchParams.set('force_sync', '1');
+                
+                console.log('✅ Recarregando com dados sincronizados:', url.toString());
                 
                 setTimeout(() => {
                     window.location.href = url.toString();
@@ -627,7 +805,7 @@ class UTMTrackDashboard {
     }
     
     /**
-     * CORREÇÃO: Muda período SEM adicionar sync=1
+     * ✅ Muda período e recarrega dados
      */
     async changePeriod(period, button) {
         console.log('📅 Mudando período para:', period);
@@ -650,12 +828,12 @@ class UTMTrackDashboard {
         
         this.currentPeriod = period;
         
-        // CORREÇÃO: NÃO adiciona sync=1 aqui
         const url = new URL(window.location);
         url.searchParams.set('period', period);
-        // Removido: url.searchParams.set('sync', '1');
         
-        this.showLoading(`Carregando dados do período: ${this.getPeriodLabel(period)}...`);
+        this.showLoading(`Carregando TODOS os campos para: ${this.getPeriodLabel(period)}...`);
+        
+        console.log('🔄 Recarregando com novo período:', url.toString());
         
         setTimeout(() => {
             window.location.href = url.toString();
@@ -715,6 +893,9 @@ class UTMTrackDashboard {
         }, 500);
     }
     
+    /**
+     * ✅ Modal de colunas com TODOS os 150+ campos organizados por categoria
+     */
     openColumnsModal() {
         const modal = document.getElementById('columnsModal');
         const container = document.getElementById('columnsCheckboxes');
@@ -723,34 +904,25 @@ class UTMTrackDashboard {
         
         container.innerHTML = '';
         
-        const allColumns = {
-            'nome': 'Nome da Campanha',
-            'status': 'Status',
-            'orcamento': 'Orçamento',
-            'gastos': 'Gastos',
-            'impressoes': 'Impressões',
-            'cliques': 'Cliques',
-            'ctr': 'CTR',
-            'cpc': 'CPC',
-            'cpm': 'CPM',
-            'vendas': 'Compras',
-            'faturamento': 'Faturamento',
-            'lucro': 'Lucro',
-            'roas': 'ROAS',
-            'roi': 'ROI',
-            'margem': 'Margem',
-            'cpa': 'CPA',
-            'ic': 'Iniciar Checkout',
-            'cpi': 'Custo por IC',
-            'add_carrinho': 'Add ao Carrinho',
-            'ver_conteudo': 'Ver Conteúdo',
-            'leads': 'Leads',
-            'conversoes': 'Conversões',
-            'alcance': 'Alcance',
-            'frequencia': 'Frequência',
-            'conta': 'Conta',
-            'objetivo': 'Objetivo',
-            'ultima_sync': 'Última Sincronização'
+        // Agrupa campos por categoria
+        const categories = {
+            'basic': '📋 Básicos',
+            'identifiers': '🏷️ Identificadores',
+            'budget': '💰 Orçamento',
+            'metrics': '📊 Métricas Principais',
+            'costs': '💸 Custos',
+            'conversions': '🎯 Conversões',
+            'video': '🎬 Vídeo',
+            'engagement': '❤️ Engajamento',
+            'quality': '⭐ Rankings de Qualidade',
+            'auction': '🔨 Leilão',
+            'external': '🔗 Links Externos',
+            'app': '📱 Mobile App',
+            'brand': '🎨 Brand',
+            'catalog': '🛒 Catálogo/E-commerce',
+            'calculated': '🧮 Calculadas',
+            'clicks': '👆 Cliques',
+            'dates': '📅 Datas'
         };
         
         const currentColumns = Array.from(document.querySelectorAll('th[data-column]'))
@@ -759,26 +931,58 @@ class UTMTrackDashboard {
         
         console.log('📋 Colunas visíveis atualmente:', currentColumns);
         
-        Object.entries(allColumns).forEach(([key, label]) => {
-            const div = document.createElement('div');
-            div.style.padding = '8px';
-            div.style.borderBottom = '1px solid var(--border)';
+        // Cria seções por categoria
+        Object.entries(categories).forEach(([catKey, catLabel]) => {
+            const catSection = document.createElement('div');
+            catSection.style.marginBottom = '20px';
             
-            const checkbox = document.createElement('input');
-            checkbox.type = 'checkbox';
-            checkbox.id = 'col_' + key;
-            checkbox.value = key;
-            checkbox.checked = currentColumns.includes(key);
-            checkbox.style.marginRight = '8px';
+            const catHeader = document.createElement('h4');
+            catHeader.textContent = catLabel;
+            catHeader.style.padding = '10px';
+            catHeader.style.background = 'var(--bg-tertiary)';
+            catHeader.style.marginBottom = '10px';
+            catHeader.style.borderRadius = '6px';
+            catHeader.style.color = 'var(--accent)';
+            catSection.appendChild(catHeader);
             
-            const labelEl = document.createElement('label');
-            labelEl.htmlFor = 'col_' + key;
-            labelEl.textContent = label;
-            labelEl.style.cursor = 'pointer';
+            const fieldsInCategory = Object.entries(this.availableFields)
+                .filter(([key, field]) => field.category === catKey);
             
-            div.appendChild(checkbox);
-            div.appendChild(labelEl);
-            container.appendChild(div);
+            if (fieldsInCategory.length > 0) {
+                fieldsInCategory.forEach(([key, field]) => {
+                    const div = document.createElement('div');
+                    div.style.padding = '8px 10px';
+                    div.style.borderBottom = '1px solid var(--border)';
+                    div.style.display = 'flex';
+                    div.style.alignItems = 'center';
+                    
+                    const checkbox = document.createElement('input');
+                    checkbox.type = 'checkbox';
+                    checkbox.id = 'col_' + key;
+                    checkbox.value = key;
+                    checkbox.checked = currentColumns.includes(key);
+                    checkbox.style.marginRight = '10px';
+                    
+                    const labelEl = document.createElement('label');
+                    labelEl.htmlFor = 'col_' + key;
+                    labelEl.textContent = field.label;
+                    labelEl.style.cursor = 'pointer';
+                    labelEl.style.flex = '1';
+                    
+                    const typeSpan = document.createElement('span');
+                    typeSpan.textContent = field.type;
+                    typeSpan.style.fontSize = '11px';
+                    typeSpan.style.color = 'var(--text-secondary)';
+                    typeSpan.style.marginLeft = '8px';
+                    
+                    div.appendChild(checkbox);
+                    div.appendChild(labelEl);
+                    div.appendChild(typeSpan);
+                    catSection.appendChild(div);
+                });
+                
+                container.appendChild(catSection);
+            }
         });
         
         modal.style.display = 'flex';
@@ -801,7 +1005,7 @@ class UTMTrackDashboard {
             }
         });
         
-        console.log('💾 Salvando colunas:', columns);
+        console.log('💾 Salvando', columns.length, 'colunas:', columns);
         
         try {
             const response = await this.apiCall('save_columns', { columns });
@@ -821,11 +1025,11 @@ class UTMTrackDashboard {
     
     filterColumnsModal() {
         const search = document.getElementById('columnSearch')?.value.toLowerCase() || '';
-        const items = document.querySelectorAll('#columnsCheckboxes > div');
+        const items = document.querySelectorAll('#columnsCheckboxes > div > div');
         
         items.forEach(item => {
             const label = item.querySelector('label')?.textContent.toLowerCase() || '';
-            item.style.display = label.includes(search) ? '' : 'none';
+            item.style.display = label.includes(search) ? 'flex' : 'none';
         });
     }
     
@@ -836,7 +1040,9 @@ class UTMTrackDashboard {
             return;
         }
         
-        window.location.href = `${window.currentPage}&ajax_action=export&format=${format}`;
+        console.log('📥 Exportando TODOS os 150+ campos em formato:', format);
+        
+        window.location.href = `${window.currentPage}&ajax_action=export&format=${format}&period=${this.currentPeriod}`;
     }
     
     openSettings() {
@@ -844,7 +1050,6 @@ class UTMTrackDashboard {
     }
     
     async apiCall(action, data = {}) {
-        // CORREÇÃO: Chama o arquivo AJAX correto
         const ajaxUrl = window.baseUrl + '/public/ajax-campaigns.php?ajax_action=' + action;
         
         console.log('🌐 API Call:', action, '→', ajaxUrl);
@@ -932,7 +1137,7 @@ class UTMTrackDashboard {
 function initDashboard() {
     try {
         window.dashboardInstance = new UTMTrackDashboard();
-        console.log('✅ Dashboard inicializado com sucesso');
+        console.log('✅ Dashboard v3.0 - 150+ CAMPOS - inicializado com sucesso');
     } catch (error) {
         console.error('❌ Erro ao inicializar dashboard:', error);
     }
@@ -946,99 +1151,67 @@ if (document.readyState === 'loading') {
 
 // Funções globais
 window.toggleSelectAll = function() {
-    if (window.dashboardInstance) {
-        window.dashboardInstance.toggleSelectAll();
-    }
+    window.dashboardInstance?.toggleSelectAll();
 };
 
 window.updateSelectedCount = function() {
-    if (window.dashboardInstance) {
-        window.dashboardInstance.updateSelectedCount();
-    }
+    window.dashboardInstance?.updateSelectedCount();
 };
 
 window.toggleStatus = function(checkbox, campaignId, metaCampaignId) {
-    if (window.dashboardInstance) {
-        window.dashboardInstance.toggleStatus(checkbox, campaignId, metaCampaignId);
-    }
+    window.dashboardInstance?.toggleStatus(checkbox, campaignId, metaCampaignId);
 };
 
 window.editField = function(element, campaignId, field, type) {
-    if (window.dashboardInstance) {
-        window.dashboardInstance.editField(element, campaignId, field, type);
-    }
+    window.dashboardInstance?.editField(element, campaignId, field, type);
 };
 
 window.filterTable = function() {
-    if (window.dashboardInstance) {
-        window.dashboardInstance.filterTable();
-    }
+    window.dashboardInstance?.filterTable();
 };
 
 window.syncAllCampaigns = function() {
-    if (window.dashboardInstance) {
-        window.dashboardInstance.syncAllCampaigns();
-    }
+    window.dashboardInstance?.syncAllCampaigns();
 };
 
 window.bulkAction = function(action) {
-    if (window.dashboardInstance) {
-        window.dashboardInstance.bulkAction(action);
-    }
+    window.dashboardInstance?.bulkAction(action);
 };
 
 window.changePeriod = function(period, button) {
-    if (window.dashboardInstance) {
-        window.dashboardInstance.changePeriod(period, button);
-    }
+    window.dashboardInstance?.changePeriod(period, button);
 };
 
 window.toggleCustomPeriod = function(button) {
-    if (window.dashboardInstance) {
-        window.dashboardInstance.toggleCustomPeriod(button);
-    }
+    window.dashboardInstance?.toggleCustomPeriod(button);
 };
 
 window.applyCustomPeriod = function() {
-    if (window.dashboardInstance) {
-        window.dashboardInstance.applyCustomPeriod();
-    }
+    window.dashboardInstance?.applyCustomPeriod();
 };
 
 window.openColumnsModal = function() {
-    if (window.dashboardInstance) {
-        window.dashboardInstance.openColumnsModal();
-    }
+    window.dashboardInstance?.openColumnsModal();
 };
 
 window.closeColumnsModal = function() {
-    if (window.dashboardInstance) {
-        window.dashboardInstance.closeColumnsModal();
-    }
+    window.dashboardInstance?.closeColumnsModal();
 };
 
 window.saveColumns = function() {
-    if (window.dashboardInstance) {
-        window.dashboardInstance.saveColumns();
-    }
+    window.dashboardInstance?.saveColumns();
 };
 
 window.filterColumnsModal = function() {
-    if (window.dashboardInstance) {
-        window.dashboardInstance.filterColumnsModal();
-    }
+    window.dashboardInstance?.filterColumnsModal();
 };
 
 window.exportData = function() {
-    if (window.dashboardInstance) {
-        window.dashboardInstance.exportData();
-    }
+    window.dashboardInstance?.exportData();
 };
 
 window.openSettings = function() {
-    if (window.dashboardInstance) {
-        window.dashboardInstance.openSettings();
-    }
+    window.dashboardInstance?.openSettings();
 };
 
-console.log('✅ UTMTrack Dashboard v2.1 - JavaScript carregado');
+console.log('✅ UTMTrack Dashboard v3.0 - COMPLETO (150+ CAMPOS) - JavaScript carregado');

@@ -1,14 +1,13 @@
 <?php
 /**
  * UTMTrack - Sistema de Rotas COMPLETO
- * Versão 5.7 - Com Suporte a Controllers V2
+ * Versão 5.8 - Atualizado para V3.0 (150+ campos)
  * 
  * Correções nesta versão:
- * - ✅ Suporte para CampaignControllerV2, AdSetControllerV2, AdControllerV2
- * - Sistema de aliases automático para controllers V2
- * - Rotas de webhooks atualizadas (getWebhook + regenerateKey)
- * - Rotas de produtos corrigidas (show ao invés de get)
- * - Sistema híbrido de produtos implementado
+ * - ✅ Rotas explícitas para syncComplete
+ * - ✅ Rotas para filtros avançados (CBO, ASC, quality_ranking)
+ * - ✅ Suporte completo para CampaignControllerV2 V3.0
+ * - ✅ Mantém todas funcionalidades anteriores
  * 
  * Arquivo: core/Router.php
  */
@@ -96,6 +95,8 @@ class Router {
             // 🔥 ROTAS DE SINCRONIZAÇÃO - CAMPANHAS
             'campanhas-sync' => ['CampaignController', $method === 'GET' ? 'sync' : 'syncAll'],
             'campanhas-sync-all' => ['CampaignController', 'syncAll'],
+            'campanhas-sync-complete' => ['CampaignController', 'syncComplete'], // ✅ NOVO V3.0
+            'sync_complete' => ['CampaignController', 'syncComplete'], // ✅ NOVO V3.0 - Alias para AJAX
             
             // 🔥 ROTAS DE EDIÇÃO LOCAL - CAMPANHAS
             'campanhas-save-columns' => ['CampaignController', 'saveColumns'],
@@ -106,6 +107,12 @@ class Router {
             // 🔥 ROTAS - SINCRONIZAÇÃO BIDIRECIONAL META ADS (CAMPANHAS)
             'campanhas-update-meta-status' => ['CampaignController', 'updateMetaStatus'],
             'campanhas-update-meta-budget' => ['CampaignController', 'updateMetaBudget'],
+            
+            // ✅ NOVO V3.0: Rotas para filtros avançados
+            'campanhas-filter-cbo' => ['CampaignController', 'filterByCBO'],
+            'campanhas-filter-asc' => ['CampaignController', 'filterByASC'],
+            'campanhas-filter-quality' => ['CampaignController', 'filterByQuality'],
+            'campanhas-filter-issues' => ['CampaignController', 'filterByIssues'],
             
             // ========================================
             // CONJUNTOS DE ANÚNCIOS (AD SETS)
@@ -118,6 +125,7 @@ class Router {
             // 🔥 ROTAS DE SINCRONIZAÇÃO - CONJUNTOS
             'conjuntos-sync' => ['AdSetController', $method === 'GET' ? 'sync' : 'syncAll'],
             'conjuntos-sync-all' => ['AdSetController', 'syncAll'],
+            'conjuntos-sync-complete' => ['AdSetController', 'syncComplete'], // ✅ NOVO V3.0
             
             // 🔥 ROTAS DE EDIÇÃO LOCAL - CONJUNTOS
             'conjuntos-save-columns' => ['AdSetController', 'saveColumns'],
@@ -139,6 +147,7 @@ class Router {
             // 🔥 ROTAS DE SINCRONIZAÇÃO - ANÚNCIOS
             'anuncios-sync' => ['AdController', $method === 'GET' ? 'sync' : 'syncAll'],
             'anuncios-sync-all' => ['AdController', 'syncAll'],
+            'anuncios-sync-complete' => ['AdController', 'syncComplete'], // ✅ NOVO V3.0
             
             // 🔥 ROTAS DE EDIÇÃO LOCAL - ANÚNCIOS
             'anuncios-save-columns' => ['AdController', 'saveColumns'],
@@ -165,11 +174,11 @@ class Router {
             'integracoes' => ['IntegrationController', 'index'],
             'integracoes-meta' => ['IntegrationController', 'meta'],
             'integracoes-meta-salvar' => ['IntegrationController', 'metaSave'],
-            'integracoes-meta-save' => ['IntegrationController', 'metaSave'], // Alias
+            'integracoes-meta-save' => ['IntegrationController', 'metaSave'],
             'integracoes-meta-conectar' => ['IntegrationController', 'metaConnect'],
-            'integracoes-meta-connect' => ['IntegrationController', 'metaConnect'], // Alias
+            'integracoes-meta-connect' => ['IntegrationController', 'metaConnect'],
             'integracoes-meta-contas' => ['IntegrationController', 'metaAccounts'],
-            'integracoes-meta-accounts' => ['IntegrationController', 'metaAccounts'], // Alias
+            'integracoes-meta-accounts' => ['IntegrationController', 'metaAccounts'],
             'integracoes-meta-toggle' => ['IntegrationController', 'metaToggleAccount'],
             'integracoes-meta-sync' => ['IntegrationController', 'metaSync'],
             'integracoes-meta-remover' => ['IntegrationController', 'metaRemove'],
@@ -207,13 +216,13 @@ class Router {
             'rule-execute' => ['RuleController', 'execute'],
             
             // ========================================
-            // PRODUTOS - SISTEMA HÍBRIDO ✅ CORRIGIDO
+            // PRODUTOS - SISTEMA HÍBRIDO
             // ========================================
             'produtos' => ['ProductController', 'index'],
-            'products' => ['ProductController', 'index'], // Alias
+            'products' => ['ProductController', 'index'],
             
-            // Rotas AJAX - CORRIGIDAS
-            'product-show' => ['ProductController', 'show'], // ✅ MUDOU DE get PARA show
+            // Rotas AJAX
+            'product-show' => ['ProductController', 'show'],
             'product-create' => ['ProductController', 'create'],
             'product-update' => ['ProductController', 'update'],
             'product-delete' => ['ProductController', 'delete'],
@@ -229,16 +238,16 @@ class Router {
             'sales-import' => ['SalesController', 'import'],
             
             // ========================================
-            // WEBHOOKS - SISTEMA UNIVERSAL ✅ ATUALIZADO
+            // WEBHOOKS - SISTEMA UNIVERSAL
             // ========================================
             'webhooks' => ['WebhookController', 'index'],
             'webhook-create' => ['WebhookController', 'create'],
             'webhook-update' => ['WebhookController', 'update'],
             'webhook-delete' => ['WebhookController', 'delete'],
-            'webhook-get' => ['WebhookController', 'getWebhook'], // ✅ CORRIGIDO: get → getWebhook
+            'webhook-get' => ['WebhookController', 'getWebhook'],
             'webhook-logs' => ['WebhookController', 'logs'],
             'webhook-test' => ['WebhookController', 'test'],
-            'webhook-regenerate-key' => ['WebhookController', 'regenerateKey'], // ✅ NOVO
+            'webhook-regenerate-key' => ['WebhookController', 'regenerateKey'],
             
             // ========================================
             // RELATÓRIOS
@@ -309,16 +318,14 @@ class Router {
     }
     
     /**
-     * Chama método do controller com suporte a Controllers V2
+     * Chama método do controller com suporte a Controllers V2 e V3.0
      */
     private function callController($controllerName, $methodName) {
-        // 🔥 MAPEAMENTO DE ALIASES - Controllers V2
-        // Se o arquivo V2 existir, usa ele ao invés do padrão
+        // 🔥 MAPEAMENTO DE ALIASES - Controllers V2/V3.0
         $controllerAliases = [
             'CampaignController' => 'CampaignControllerV2',
             'AdSetController' => 'AdSetControllerV2',
             'AdController' => 'AdControllerV2',
-            // Adicione outros controllers V2 aqui conforme necessário
         ];
         
         // Verifica se existe versão V2 do controller
@@ -327,18 +334,18 @@ class Router {
             $v2Path = dirname(__DIR__) . '/app/controllers/' . $controllerAliases[$controllerName] . '.php';
             if (file_exists($v2Path)) {
                 $actualControllerName = $controllerAliases[$controllerName];
+                error_log("[ROUTER] ✅ Usando {$actualControllerName} (V3.0 - 150+ campos)");
             }
         }
         
         $controllerPath = dirname(__DIR__) . '/app/controllers/' . $actualControllerName . '.php';
         
         if (!file_exists($controllerPath)) {
-            // Tenta criar controller temporário para páginas "Em breve"
+            // Tenta criar controller temporário
             if ($this->createTempController($controllerName, $methodName)) {
                 return true;
             }
             
-            // Se for requisição AJAX, retorna erro JSON
             if ($this->isAjax()) {
                 header('Content-Type: application/json');
                 echo json_encode([
@@ -354,7 +361,6 @@ class Router {
         
         require_once $controllerPath;
         
-        // Verifica se a classe existe com o nome V2
         if (!class_exists($actualControllerName)) {
             if ($this->isAjax()) {
                 header('Content-Type: application/json');
@@ -365,25 +371,32 @@ class Router {
                 exit;
             }
             
-            $this->error("Classe do controller não encontrada: {$actualControllerName}");
+            $this->error("Classe não encontrada: {$actualControllerName}");
             return false;
         }
         
         $controller = new $actualControllerName();
         
         if (!method_exists($controller, $methodName)) {
-            // Se o método não existe mas é syncAll, tenta chamar sync
+            // Fallback: syncAll → sync
             if ($methodName === 'syncAll' && method_exists($controller, 'sync')) {
+                error_log("[ROUTER] ⚠️ Método syncAll não existe, usando sync()");
                 return call_user_func([$controller, 'sync']);
             }
             
-            // Se o método não existe mas é um método de Meta Ads novo, avisa
-            if (in_array($methodName, ['updateMetaStatus', 'updateMetaBudget'])) {
+            // ✅ NOVO V3.0: Fallback para métodos de filtro
+            if (strpos($methodName, 'filterBy') === 0 && method_exists($controller, 'index')) {
+                error_log("[ROUTER] ⚠️ Método {$methodName} não existe, usando index()");
+                return call_user_func([$controller, 'index']);
+            }
+            
+            // Aviso para métodos novos do Meta Ads
+            if (in_array($methodName, ['updateMetaStatus', 'updateMetaBudget', 'syncComplete'])) {
                 if ($this->isAjax()) {
                     header('Content-Type: application/json');
                     echo json_encode([
                         'success' => false,
-                        'message' => "O método {$methodName} ainda não foi implementado no {$actualControllerName}. Por favor, adicione este método ao controller."
+                        'message' => "O método {$methodName} ainda não foi implementado no {$actualControllerName}. Atualize para a versão V3.0 do controller."
                     ]);
                     exit;
                 }
@@ -402,6 +415,7 @@ class Router {
             return false;
         }
         
+        error_log("[ROUTER] ✅ Executando: {$actualControllerName}@{$methodName}");
         return call_user_func([$controller, $methodName]);
     }
     
@@ -417,7 +431,6 @@ class Router {
      * Cria controller temporário para páginas em desenvolvimento
      */
     private function createTempController($controllerName, $method) {
-        // Controllers que podem usar view temporária
         $tempControllers = [
             'AdSetController' => 'campaigns/adsets',
             'AdController' => 'campaigns/ads'
@@ -427,28 +440,23 @@ class Router {
             $viewFile = dirname(__DIR__) . '/app/views/' . $tempControllers[$controllerName] . '.php';
             
             if (file_exists($viewFile)) {
-                // Carrega configuração e auth
                 $config = require dirname(__DIR__) . '/config/app.php';
                 $auth = new Auth();
                 $db = Database::getInstance();
                 
-                // Verifica autenticação
                 if (!$auth->check()) {
                     header('Location: index.php?page=login');
                     exit;
                 }
                 
-                // Dados padrão para views
                 $user = $auth->user();
                 $pageTitle = ucfirst(str_replace('Controller', '', $controllerName));
                 
-                // Dados específicos
                 $adsets = [];
                 $ads = [];
                 $stats = [];
                 $userColumns = null;
                 
-                // Inclui layout
                 include dirname(__DIR__) . '/app/views/layout/header.php';
                 include $viewFile;
                 include dirname(__DIR__) . '/app/views/layout/footer.php';
@@ -466,7 +474,6 @@ class Router {
     private function error($message) {
         http_response_code(500);
         
-        // Se for requisição AJAX, retorna JSON
         if ($this->isAjax()) {
             header('Content-Type: application/json');
             echo json_encode([
@@ -476,7 +483,6 @@ class Router {
             exit;
         }
         
-        // Senão, exibe erro HTML moderno
         echo "<!DOCTYPE html>";
         echo "<html lang='pt-BR'><head><meta charset='UTF-8'>";
         echo "<meta name='viewport' content='width=device-width, initial-scale=1.0'>";
@@ -512,7 +518,6 @@ class Router {
     private function notFound() {
         http_response_code(404);
         
-        // Se for requisição AJAX, retorna JSON
         if ($this->isAjax()) {
             header('Content-Type: application/json');
             echo json_encode([
@@ -522,7 +527,6 @@ class Router {
             exit;
         }
         
-        // Senão, exibe 404 HTML moderno
         echo "<!DOCTYPE html>";
         echo "<html lang='pt-BR'><head><meta charset='UTF-8'>";
         echo "<meta name='viewport' content='width=device-width, initial-scale=1.0'>";

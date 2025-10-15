@@ -1,9 +1,11 @@
 <?php
 /**
  * ========================================
- * AJAX SYNC V2.0 - PROCESSADOR COMPLETO
+ * AJAX SYNC V2.1 - CORREÇÃO DE STATUS
  * ========================================
- * Processa todas as requisições AJAX do dashboard
+ * CORREÇÃO: Status sincroniza corretamente
+ * - ✅ Atualiza status ao sincronizar
+ * - ✅ Retorna status correto nas respostas
  */
 
 session_start();
@@ -75,6 +77,8 @@ try {
                 'status' => $requestData['status'] ?? null
             ];
             
+            error_log("[AJAX] Iniciando sincronização completa com opções: " . json_encode($options));
+            
             $results = $metaSync->syncAll($options);
             
             // Log de sincronização
@@ -86,6 +90,8 @@ try {
                 'errors' => !empty($results['campaigns']['errors']) ? json_encode($results['campaigns']['errors']) : null,
                 'duration' => $results['duration']
             ]);
+            
+            error_log("[AJAX] ✅ Sincronização completa finalizada: {$results['campaigns']['synced']} campanhas");
             
             $response = [
                 'success' => true,
@@ -167,6 +173,8 @@ try {
                 throw new Exception('Parâmetros inválidos');
             }
             
+            error_log("[AJAX] Atualizando status da campanha ID {$campaignId} para: {$newStatus}");
+            
             // Busca campanha
             $campaign = $db->fetch("
                 SELECT c.*, aa.access_token 
@@ -182,21 +190,32 @@ try {
                 throw new Exception('Campanha não encontrada');
             }
             
+            // ✅ CORREÇÃO: Normaliza o status antes de salvar
+            $normalizedStatus = normalizeStatus($newStatus);
+            
             // Atualiza localmente
             $db->update('campaigns',
-                ['status' => strtolower($newStatus)],
+                ['status' => $normalizedStatus],
                 'id = :id',
                 ['id' => $campaignId]
             );
+            
+            error_log("[AJAX] ✅ Status atualizado no banco: {$normalizedStatus}");
             
             // Tenta atualizar no Meta
             $metaUpdated = false;
             if ($metaCampaignId && $campaign['access_token']) {
                 $metaUpdated = updateMetaStatus(
                     $metaCampaignId,
-                    $newStatus,
+                    $newStatus, // Meta espera UPPERCASE
                     $campaign['access_token']
                 );
+                
+                if ($metaUpdated) {
+                    error_log("[AJAX] ✅ Status atualizado no Meta Ads");
+                } else {
+                    error_log("[AJAX] ⚠️ Falha ao atualizar status no Meta Ads");
+                }
             }
             
             $response = [
@@ -204,7 +223,7 @@ try {
                 'message' => $metaUpdated ? 'Status atualizado no Meta' : 'Status atualizado localmente',
                 'data' => [
                     'meta_updated' => $metaUpdated,
-                    'new_status' => strtolower($newStatus)
+                    'new_status' => $normalizedStatus
                 ]
             ];
             break;
@@ -489,6 +508,31 @@ exit;
 // ========================================
 
 /**
+ * ✅ NOVO: Normaliza status para o padrão do banco
+ */
+function normalizeStatus($status) {
+    $status = strtoupper(trim($status));
+    
+    $statusMap = [
+        'ACTIVE' => 'active',
+        'PAUSED' => 'paused',
+        'DELETED' => 'deleted',
+        'ARCHIVED' => 'archived',
+        'CAMPAIGN_PAUSED' => 'paused',
+        'ADSET_PAUSED' => 'paused',
+        'IN_PROCESS' => 'active',
+        'WITH_ISSUES' => 'paused',
+        'DISAPPROVED' => 'paused',
+        'PREAPPROVED' => 'active',
+        'PENDING_REVIEW' => 'active',
+        'PENDING_BILLING_INFO' => 'paused',
+        'NOT_DELIVERING' => 'paused'
+    ];
+    
+    return $statusMap[$status] ?? 'paused';
+}
+
+/**
  * Sincroniza apenas campanhas
  */
 function syncCampaignsOnly($account, $db, $userId, $options = []) {
@@ -512,6 +556,9 @@ function syncCampaignsOnly($account, $db, $userId, $options = []) {
     
     if (!empty($response['data'])) {
         foreach ($response['data'] as $campaign) {
+            // ✅ CORREÇÃO: Log do status
+            error_log("[AJAX-SYNC] Campanha {$campaign['name']}: status={$campaign['status']}, effective={$campaign['effective_status']}");
+            
             // Salva campanha
             saveCampaign($db, $userId, $campaign, $account['id']);
             $campaigns[] = $campaign;
@@ -618,7 +665,7 @@ function updateMetaStatus($campaignId, $status, $accessToken) {
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
     curl_setopt($ch, CURLOPT_POST, true);
     curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query([
-        'status' => $status,
+        'status' => strtoupper($status), // Meta espera UPPERCASE
         'access_token' => $accessToken
     ]));
     curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
@@ -696,7 +743,7 @@ function updateMetaField($campaignId, $field, $value, $accessToken) {
 }
 
 /**
- * Atualiza status da campanha
+ * ✅ CORREÇÃO: Atualiza status da campanha (normaliza antes de salvar)
  */
 function updateCampaignStatus($db, $userId, $campaignId, $status) {
     $campaign = $db->fetch("
@@ -713,9 +760,12 @@ function updateCampaignStatus($db, $userId, $campaignId, $status) {
         throw new Exception('Campanha não encontrada');
     }
     
+    // ✅ CORREÇÃO: Normaliza status antes de salvar
+    $normalizedStatus = normalizeStatus($status);
+    
     // Atualiza localmente
     $db->update('campaigns',
-        ['status' => strtolower($status)],
+        ['status' => $normalizedStatus],
         'id = :id',
         ['id' => $campaignId]
     );
@@ -748,15 +798,20 @@ function duplicateCampaign($db, $userId, $campaignId) {
 }
 
 /**
- * Salva campanha
+ * ✅ CORREÇÃO: Salva campanha com status normalizado
  */
 function saveCampaign($db, $userId, $campaignData, $accountId) {
+    // ✅ CORREÇÃO: Determina status real (effective_status > status)
+    $actualStatus = !empty($campaignData['effective_status']) 
+        ? normalizeStatus($campaignData['effective_status'])
+        : normalizeStatus($campaignData['status'] ?? 'PAUSED');
+    
     $data = [
         'user_id' => $userId,
         'ad_account_id' => $accountId,
         'campaign_id' => $campaignData['id'],
         'campaign_name' => $campaignData['name'] ?? 'Sem nome',
-        'status' => strtolower($campaignData['status'] ?? 'paused'),
+        'status' => $actualStatus, // ✅ USA STATUS CORRETO
         'objective' => $campaignData['objective'] ?? null,
         'daily_budget' => isset($campaignData['daily_budget']) ? floatval($campaignData['daily_budget']) / 100 : 0,
         'lifetime_budget' => isset($campaignData['lifetime_budget']) ? floatval($campaignData['lifetime_budget']) / 100 : 0,
@@ -775,9 +830,15 @@ function saveCampaign($db, $userId, $campaignData, $accountId) {
     ]);
     
     if ($exists) {
-        unset($data['user_id']);
-        $db->update('campaigns', $data, 'id = :id', ['id' => $exists['id']]);
+        $updateData = $data;
+        unset($updateData['user_id']);
+        
+        error_log("[AJAX-SAVE] Atualizando campanha ID {$exists['id']} com status: {$actualStatus}");
+        
+        $db->update('campaigns', $updateData, 'id = :id', ['id' => $exists['id']]);
     } else {
+        error_log("[AJAX-SAVE] Inserindo nova campanha com status: {$actualStatus}");
+        
         $db->insert('campaigns', $data);
     }
 }

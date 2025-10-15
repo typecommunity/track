@@ -1,632 +1,173 @@
 <?php
 /**
  * ========================================
- * UTMTRACK - DEBUG AUTOMÁTICO V2.1
+ * TESTE FINAL: ajax-campaigns.php
  * ========================================
- * COMO USAR:
- * 1. Faça upload deste arquivo para /public/debug-utmtrack.php
- * 2. Acesse: https://seusite.com/utmtrack/public/debug-utmtrack.php
- * 3. Envie o resultado para análise
+ * Salve como: /utmtrack/test_ajax_structure.php
+ * Acesse: http://seudominio.com/utmtrack/test_ajax_structure.php
  */
 
-session_start();
-error_reporting(E_ALL);
-ini_set('display_errors', 1);
+$baseDir = __DIR__;
 
-// CORREÇÃO: Detecta estrutura correta
-// O arquivo pode estar em:
-// 1. /utmtrack/debug.php → baseDir = __DIR__
-// 2. /utmtrack/public/debug.php → baseDir = dirname(__DIR__)
-$currentDir = __DIR__;
+echo "<pre>";
+echo "🔍 VALIDAÇÃO FINAL - ajax-campaigns.php\n";
+echo "========================================\n\n";
 
-// Verifica se core/Database.php existe no diretório atual
-if (file_exists($currentDir . '/core/Database.php')) {
-    $baseDir = $currentDir; // Arquivo na raiz do utmtrack
+// ========================================
+// 1. VERIFICA ARQUIVO CORRETO
+// ========================================
+echo "📁 LOCALIZAÇÃO DO ARQUIVO\n";
+echo "----------------------------------------\n";
+
+$correctFile = $baseDir . '/public/ajax-campaigns.php';
+$wrongFile1 = $baseDir . '/ajax_campaigns.php';
+$wrongFile2 = $baseDir . '/public/ajax_campaigns.php';
+
+if (file_exists($correctFile)) {
+    echo "✅ CORRETO: /public/ajax-campaigns.php EXISTS\n";
+    
+    // Verifica conteúdo
+    $content = file_get_contents($correctFile);
+    
+    // Testes de integridade
+    $checks = [
+        'dirname(__DIR__)' => strpos($content, 'dirname(__DIR__)') !== false,
+        'ajaxResponse()' => strpos($content, 'function ajaxResponse') !== false,
+        'ajaxError()' => strpos($content, 'function ajaxError') !== false,
+        'AJAX_DEBUG' => strpos($content, 'AJAX_DEBUG') !== false,
+        'sync_complete case' => strpos($content, "case 'sync_complete':") !== false
+    ];
+    
+    echo "\n🔬 VERIFICAÇÕES DE INTEGRIDADE:\n";
+    foreach ($checks as $check => $result) {
+        echo ($result ? "   ✅" : "   ❌") . " {$check}\n";
+    }
+    
 } else {
-    $baseDir = dirname($currentDir); // Arquivo em subpasta
+    echo "❌ ERRO: /public/ajax-campaigns.php NÃO ENCONTRADO!\n";
 }
 
-// Debug da estrutura
-$structureInfo = [
-    'current_file' => __FILE__,
-    'current_dir' => $currentDir,
-    'base_dir' => $baseDir,
-    'detected_structure' => file_exists($baseDir . '/core/Database.php') ? 'CORRETA' : 'INCORRETA'
+// Verifica arquivos errados
+if (file_exists($wrongFile1)) {
+    echo "\n⚠️  ATENÇÃO: Arquivo obsoleto encontrado:\n";
+    echo "   /ajax_campaigns.php (DELETE ESTE ARQUIVO)\n";
+}
+
+if (file_exists($wrongFile2)) {
+    echo "\n⚠️  ATENÇÃO: Arquivo com nome errado:\n";
+    echo "   /public/ajax_campaigns.php (deveria ser ajax-campaigns.php)\n";
+}
+
+echo "\n========================================\n";
+echo "2️⃣  ESTRUTURA DE CAMINHOS\n";
+echo "========================================\n\n";
+
+// Simula os caminhos do ajax-campaigns.php
+$ajaxBaseDir = dirname($correctFile); // /utmtrack/public/
+$projectRoot = dirname($ajaxBaseDir);  // /utmtrack/
+
+echo "Ajax Location:     {$ajaxBaseDir}\n";
+echo "Project Root:      {$projectRoot}\n\n";
+
+$requiredPaths = [
+    'Database.php' => $projectRoot . '/core/Database.php',
+    'MetaAdsDataStructure.php' => $projectRoot . '/core/MetaAdsDataStructure.php',
+    'MetaAdsSync.php' => $projectRoot . '/core/MetaAdsSync.php',
+    'Router.php' => $projectRoot . '/core/Router.php',
+    'CampaignControllerV2.php' => $projectRoot . '/app/controllers/CampaignControllerV2.php'
 ];
 
-$results = [];
-$errors = [];
+echo "📦 DEPENDÊNCIAS NECESSÁRIAS:\n";
+echo "----------------------------------------\n";
 
-// CSS para deixar bonito
-?>
-<!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>UTMTrack - Debug Automático</title>
-    <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body {
-            font-family: 'Courier New', monospace;
-            background: linear-gradient(135deg, #0a0e1a 0%, #1a1f2e 100%);
-            color: #e4e6eb;
-            padding: 20px;
-            line-height: 1.6;
-        }
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-        }
-        h1 {
-            color: #3b82f6;
-            text-align: center;
-            margin-bottom: 30px;
-            font-size: 2.5em;
-            text-shadow: 0 0 20px rgba(59, 130, 246, 0.5);
-        }
-        .test {
-            background: rgba(26, 31, 46, 0.8);
-            padding: 20px;
-            margin: 15px 0;
-            border-left: 4px solid #3b82f6;
-            border-radius: 8px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
-        }
-        .test h2 {
-            color: #3b82f6;
-            margin-bottom: 10px;
-            font-size: 1.3em;
-        }
-        .success { 
-            border-left-color: #10b981; 
-            background: rgba(16, 185, 129, 0.1);
-        }
-        .success h2 { color: #10b981; }
-        .error { 
-            border-left-color: #ef4444; 
-            background: rgba(239, 68, 68, 0.1);
-        }
-        .error h2 { color: #ef4444; }
-        .warning { 
-            border-left-color: #f59e0b; 
-            background: rgba(245, 158, 11, 0.1);
-        }
-        .warning h2 { color: #f59e0b; }
-        .code {
-            background: #0a0e1a;
-            padding: 15px;
-            border-radius: 6px;
-            overflow-x: auto;
-            margin: 10px 0;
-            border: 1px solid #2a2f3e;
-            font-size: 0.9em;
-        }
-        .badge {
-            display: inline-block;
-            padding: 4px 12px;
-            border-radius: 20px;
-            font-size: 0.85em;
-            font-weight: bold;
-            margin-left: 10px;
-        }
-        .badge-success { background: #10b981; color: white; }
-        .badge-error { background: #ef4444; color: white; }
-        .badge-warning { background: #f59e0b; color: white; }
-        .summary {
-            background: rgba(59, 130, 246, 0.1);
-            border: 2px solid #3b82f6;
-            padding: 20px;
-            border-radius: 12px;
-            margin-bottom: 30px;
-            text-align: center;
-        }
-        .summary h2 { color: #3b82f6; margin-bottom: 15px; }
-        .stats {
-            display: flex;
-            justify-content: space-around;
-            margin-top: 15px;
-        }
-        .stat {
-            text-align: center;
-        }
-        .stat-number {
-            font-size: 2.5em;
-            font-weight: bold;
-        }
-        .stat-label {
-            color: #8b92a4;
-            font-size: 0.9em;
-        }
-        pre {
-            white-space: pre-wrap;
-            word-wrap: break-word;
-        }
-        .copy-btn {
-            background: #3b82f6;
-            color: white;
-            border: none;
-            padding: 10px 20px;
-            border-radius: 6px;
-            cursor: pointer;
-            margin: 10px 5px;
-            font-family: inherit;
-        }
-        .copy-btn:hover { background: #2563eb; }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <h1>🔍 UTMTrack - Debug Automático v2.1</h1>
-        
-        <?php
-        // ========================================
-        // TESTE 1: Arquivos Principais
-        // ========================================
-        $test1 = [
-            'name' => 'Arquivos Principais',
-            'status' => 'success',
-            'checks' => []
-        ];
-        
-        $files = [
-            'Database' => $baseDir . '/core/Database.php',
-            'Controller Base' => $baseDir . '/core/Controller.php',
-            'Config Database' => $baseDir . '/config/database.php',
-            'Campaign Controller' => $baseDir . '/app/controllers/CampaignController.php',
-            'Campaign Controller V2' => $baseDir . '/app/controllers/CampaignControllerV2.php',
-            'MetaAdsSync' => $baseDir . '/core/MetaAdsSync.php',
-            'Index View' => $baseDir . '/app/views/campaigns/index.php',
-            'JS Dashboard' => $baseDir . '/assets/js/utmtrack-dashboard-v2.js',
-            'CSS Dashboard' => $baseDir . '/assets/css/utmtrack-dashboard-v2.css'
-        ];
-        
-        foreach ($files as $name => $path) {
-            $exists = file_exists($path);
-            $test1['checks'][] = [
-                'name' => $name,
-                'status' => $exists ? 'success' : 'error',
-                'message' => $exists ? "✅ Encontrado: $path" : "❌ NÃO encontrado: $path"
-            ];
-            if (!$exists) $test1['status'] = 'error';
-        }
-        
-        $results[] = $test1;
-        
-        // ========================================
-        // TESTE 2: Banco de Dados
-        // ========================================
-        $test2 = [
-            'name' => 'Conexão com Banco de Dados',
-            'status' => 'error',
-            'checks' => []
-        ];
-        
-        try {
-            // Tenta carregar config do lugar correto
-            $configFile = $baseDir . '/config/database.php';
-            
-            if (!file_exists($configFile)) {
-                $configFile = $baseDir . '/core/Config.php';
-            }
-            
-            if (file_exists($configFile)) {
-                require_once $configFile;
-                
-                // Detecta tipo de config
-                if (file_exists($baseDir . '/config/database.php')) {
-                    // Config em array
-                    $dbConfig = require $baseDir . '/config/database.php';
-                    $config = $dbConfig;
-                    
-                    $test2['checks'][] = [
-                        'name' => 'Config',
-                        'status' => 'success',
-                        'message' => "✅ Arquivo config/database.php carregado"
-                    ];
-                } else {
-                    // Config em classe
-                    $config = Config::get('database');
-                    
-                    $test2['checks'][] = [
-                        'name' => 'Config',
-                        'status' => 'success',
-                        'message' => "✅ Arquivo core/Config.php carregado"
-                    ];
-                }
-                
-                // Tenta conectar
-                $host = $config['host'] ?? 'localhost';
-                $database = $config['database'] ?? $config['dbname'] ?? '';
-                $username = $config['username'] ?? $config['user'] ?? '';
-                $password = $config['password'] ?? '';
-                
-                $dsn = "mysql:host={$host};dbname={$database};charset=utf8mb4";
-                $pdo = new PDO($dsn, $username, $password, [
-                    PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-                    PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC
-                ]);
-                
-                $test2['checks'][] = [
-                    'name' => 'Conexão',
-                    'status' => 'success',
-                    'message' => "✅ Conectado ao banco: {$database}"
-                ];
-                
-                // Verifica tabela user_preferences
-                $stmt = $pdo->query("SHOW TABLES LIKE 'user_preferences'");
-                if ($stmt->rowCount() > 0) {
-                    $test2['checks'][] = [
-                        'name' => 'Tabela user_preferences',
-                        'status' => 'success',
-                        'message' => "✅ Tabela existe"
-                    ];
-                    
-                    // Verifica estrutura
-                    $stmt = $pdo->query("DESCRIBE user_preferences");
-                    $columns = $stmt->fetchAll(PDO::FETCH_COLUMN);
-                    
-                    $requiredColumns = ['id', 'user_id', 'preference_key', 'preference_value'];
-                    $hasAll = true;
-                    foreach ($requiredColumns as $col) {
-                        if (!in_array($col, $columns)) {
-                            $hasAll = false;
-                            $test2['checks'][] = [
-                                'name' => "Coluna $col",
-                                'status' => 'error',
-                                'message' => "❌ Coluna faltando: $col"
-                            ];
-                        }
-                    }
-                    
-                    if ($hasAll) {
-                        $test2['checks'][] = [
-                            'name' => 'Estrutura da tabela',
-                            'status' => 'success',
-                            'message' => "✅ Todas as colunas necessárias existem: " . implode(', ', $columns)
-                        ];
-                    }
-                    
-                    // Verifica dados
-                    $stmt = $pdo->query("SELECT COUNT(*) as total FROM user_preferences WHERE preference_key = 'campaign_columns'");
-                    $count = $stmt->fetch()['total'];
-                    
-                    $test2['checks'][] = [
-                        'name' => 'Dados salvos',
-                        'status' => $count > 0 ? 'success' : 'warning',
-                        'message' => $count > 0 ? "✅ Existem $count preferência(s) salva(s)" : "⚠️ Nenhuma preferência salva ainda"
-                    ];
-                    
-                    // Mostra último registro
-                    if ($count > 0) {
-                        $stmt = $pdo->query("SELECT * FROM user_preferences WHERE preference_key = 'campaign_columns' ORDER BY id DESC LIMIT 1");
-                        $lastPref = $stmt->fetch();
-                        $test2['checks'][] = [
-                            'name' => 'Última preferência',
-                            'status' => 'success',
-                            'message' => "📊 User ID: {$lastPref['user_id']} | Colunas: " . substr($lastPref['preference_value'], 0, 100)
-                        ];
-                    }
-                    
-                } else {
-                    $test2['checks'][] = [
-                        'name' => 'Tabela user_preferences',
-                        'status' => 'error',
-                        'message' => "❌ Tabela NÃO existe! Execute o SQL de criação."
-                    ];
-                }
-                
-                $test2['status'] = 'success';
-                
-            } else {
-                $test2['checks'][] = [
-                    'name' => 'Config',
-                    'status' => 'error',
-                    'message' => "❌ Arquivo Config.php não encontrado"
-                ];
-            }
-            
-        } catch (Exception $e) {
-            $test2['checks'][] = [
-                'name' => 'Erro',
-                'status' => 'error',
-                'message' => "❌ Erro: " . $e->getMessage()
-            ];
-        }
-        
-        $results[] = $test2;
-        
-        // ========================================
-        // TESTE 3: Sessão
-        // ========================================
-        $test3 = [
-            'name' => 'Sessão do Usuário',
-            'status' => 'success',
-            'checks' => []
-        ];
-        
-        if (isset($_SESSION['user_id'])) {
-            $test3['checks'][] = [
-                'name' => 'User ID',
-                'status' => 'success',
-                'message' => "✅ Logado como User ID: " . $_SESSION['user_id']
-            ];
-        } else {
-            $test3['checks'][] = [
-                'name' => 'User ID',
-                'status' => 'error',
-                'message' => "❌ NÃO está logado! Faça login primeiro."
-            ];
-            $test3['status'] = 'error';
-        }
-        
-        $test3['checks'][] = [
-            'name' => 'Sessão ativa',
-            'status' => 'success',
-            'message' => "✅ Session ID: " . session_id()
-        ];
-        
-        $results[] = $test3;
-        
-        // ========================================
-        // TESTE 4: AJAX Endpoint
-        // ========================================
-        $test4 = [
-            'name' => 'Endpoint AJAX',
-            'status' => 'success',
-            'checks' => []
-        ];
-        
-        $currentUrl = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https" : "http") . 
-                      "://" . $_SERVER['HTTP_HOST'] . dirname($_SERVER['REQUEST_URI']);
-        
-        $test4['checks'][] = [
-            'name' => 'URL Atual',
-            'status' => 'success',
-            'message' => "📍 $currentUrl"
-        ];
-        
-        // Verifica index.php na view
-        if (isset($pdo)) {
-            $viewFile = $baseDir . '/app/views/campaigns/index.php';
-            if (file_exists($viewFile)) {
-                $content = file_get_contents($viewFile);
-                
-                // Verifica se tem handler AJAX
-                if (strpos($content, "isset(\$_GET['ajax_action'])") !== false) {
-                    $test4['checks'][] = [
-                        'name' => 'Handler AJAX na View',
-                        'status' => 'success',
-                        'message' => "✅ Handler AJAX encontrado no index.php"
-                    ];
-                } else {
-                    $test4['checks'][] = [
-                        'name' => 'Handler AJAX na View',
-                        'status' => 'warning',
-                        'message' => "⚠️ Handler AJAX NÃO encontrado no index.php"
-                    ];
-                }
-                
-                // Verifica se carrega userColumns
-                if (strpos($content, '$userColumns') !== false) {
-                    $test4['checks'][] = [
-                        'name' => 'Variável $userColumns',
-                        'status' => 'success',
-                        'message' => "✅ Variável \$userColumns encontrada"
-                    ];
-                } else {
-                    $test4['checks'][] = [
-                        'name' => 'Variável $userColumns',
-                        'status' => 'error',
-                        'message' => "❌ Variável \$userColumns NÃO encontrada!"
-                    ];
-                    $test4['status'] = 'error';
-                }
-            }
-        }
-        
-        $results[] = $test4;
-        
-        // ========================================
-        // TESTE 5: Teste de Salvamento Real
-        // ========================================
-        if (isset($pdo) && isset($_SESSION['user_id'])) {
-            $test5 = [
-                'name' => 'Teste de Salvamento',
-                'status' => 'success',
-                'checks' => []
-            ];
-            
-            try {
-                $userId = $_SESSION['user_id'];
-                $testColumns = json_encode(['checkbox', 'nome', 'status', 'vendas', 'faturamento', 'roas']);
-                
-                // Tenta inserir
-                $stmt = $pdo->prepare("
-                    INSERT INTO user_preferences (user_id, preference_key, preference_value)
-                    VALUES (:user_id, :key, :value)
-                    ON DUPLICATE KEY UPDATE preference_value = :value
-                ");
-                
-                $stmt->execute([
-                    'user_id' => $userId,
-                    'key' => 'campaign_columns_test',
-                    'value' => $testColumns
-                ]);
-                
-                $test5['checks'][] = [
-                    'name' => 'INSERT',
-                    'status' => 'success',
-                    'message' => "✅ Conseguiu inserir dados de teste"
-                ];
-                
-                // Tenta recuperar
-                $stmt = $pdo->prepare("
-                    SELECT preference_value 
-                    FROM user_preferences 
-                    WHERE user_id = :user_id AND preference_key = :key
-                ");
-                $stmt->execute([
-                    'user_id' => $userId,
-                    'key' => 'campaign_columns_test'
-                ]);
-                
-                $result = $stmt->fetch();
-                
-                if ($result && $result['preference_value'] === $testColumns) {
-                    $test5['checks'][] = [
-                        'name' => 'SELECT',
-                        'status' => 'success',
-                        'message' => "✅ Conseguiu recuperar dados: " . $result['preference_value']
-                    ];
-                } else {
-                    $test5['checks'][] = [
-                        'name' => 'SELECT',
-                        'status' => 'error',
-                        'message' => "❌ Dados recuperados não batem!"
-                    ];
-                    $test5['status'] = 'error';
-                }
-                
-                // Limpa teste
-                $pdo->prepare("DELETE FROM user_preferences WHERE preference_key = 'campaign_columns_test'")->execute();
-                
-            } catch (Exception $e) {
-                $test5['checks'][] = [
-                    'name' => 'Erro',
-                    'status' => 'error',
-                    'message' => "❌ " . $e->getMessage()
-                ];
-                $test5['status'] = 'error';
-            }
-            
-            $results[] = $test5;
-        }
-        
-        // ========================================
-        // CALCULA ESTATÍSTICAS
-        // ========================================
-        $totalTests = 0;
-        $successTests = 0;
-        $errorTests = 0;
-        $warningTests = 0;
-        
-        foreach ($results as $test) {
-            foreach ($test['checks'] as $check) {
-                $totalTests++;
-                if ($check['status'] === 'success') $successTests++;
-                if ($check['status'] === 'error') $errorTests++;
-                if ($check['status'] === 'warning') $warningTests++;
-            }
-        }
-        
-        $overallStatus = $errorTests > 0 ? 'error' : ($warningTests > 0 ? 'warning' : 'success');
-        ?>
-        
-        <!-- RESUMO -->
-        <div class="summary">
-            <h2>📊 Resumo do Diagnóstico</h2>
-            
-            <!-- INFO DA ESTRUTURA -->
-            <div class="code" style="margin-bottom: 20px; text-align: left;">
-                <strong>🗂️ Estrutura Detectada:</strong><br>
-                Arquivo atual: <?= $structureInfo['current_file'] ?><br>
-                Diretório base: <?= $structureInfo['base_dir'] ?><br>
-                Status: <span class="badge badge-<?= $structureInfo['detected_structure'] === 'CORRETA' ? 'success' : 'error' ?>">
-                    <?= $structureInfo['detected_structure'] ?>
-                </span>
-            </div>
-            
-            <div class="stats">
-                <div class="stat">
-                    <div class="stat-number" style="color: #10b981;"><?= $successTests ?></div>
-                    <div class="stat-label">Testes OK</div>
-                </div>
-                <div class="stat">
-                    <div class="stat-number" style="color: #ef4444;"><?= $errorTests ?></div>
-                    <div class="stat-label">Erros</div>
-                </div>
-                <div class="stat">
-                    <div class="stat-number" style="color: #f59e0b;"><?= $warningTests ?></div>
-                    <div class="stat-label">Avisos</div>
-                </div>
-            </div>
-            <div style="margin-top: 20px; font-size: 1.2em;">
-                Status Geral: 
-                <?php if ($overallStatus === 'success'): ?>
-                    <span class="badge badge-success">✅ TUDO OK</span>
-                <?php elseif ($overallStatus === 'warning'): ?>
-                    <span class="badge badge-warning">⚠️ COM AVISOS</span>
-                <?php else: ?>
-                    <span class="badge badge-error">❌ COM ERROS</span>
-                <?php endif; ?>
-            </div>
-        </div>
-        
-        <!-- RESULTADOS DETALHADOS -->
-        <?php foreach ($results as $test): ?>
-        <div class="test <?= $test['status'] ?>">
-            <h2>
-                <?php if ($test['status'] === 'success'): ?>
-                    ✅
-                <?php elseif ($test['status'] === 'warning'): ?>
-                    ⚠️
-                <?php else: ?>
-                    ❌
-                <?php endif; ?>
-                <?= $test['name'] ?>
-                <span class="badge badge-<?= $test['status'] ?>">
-                    <?= strtoupper($test['status']) ?>
-                </span>
-            </h2>
-            
-            <?php foreach ($test['checks'] as $check): ?>
-            <div class="code">
-                <strong><?= $check['name'] ?>:</strong><br>
-                <?= $check['message'] ?>
-            </div>
-            <?php endforeach; ?>
-        </div>
-        <?php endforeach; ?>
-        
-        <!-- AÇÕES -->
-        <div class="test">
-            <h2>🎯 Próximos Passos</h2>
-            <div class="code">
-                <?php if ($errorTests === 0): ?>
-                    <strong style="color: #10b981;">✅ Sistema parece estar OK!</strong><br><br>
-                    Se as colunas ainda não funcionam, o problema pode ser:<br>
-                    1. Cache do navegador (Ctrl+Shift+R)<br>
-                    2. JavaScript não está carregando<br>
-                    3. AJAX indo para URL errada<br><br>
-                    <strong>👉 Cole a URL desta página + os resultados no chat!</strong>
-                <?php else: ?>
-                    <strong style="color: #ef4444;">❌ Encontrados <?= $errorTests ?> erro(s)</strong><br><br>
-                    Corrija os erros acima e execute novamente.<br><br>
-                    <strong>👉 Envie print desta página para análise!</strong>
-                <?php endif; ?>
-            </div>
-            
-            <button class="copy-btn" onclick="copyResults()">📋 Copiar Todos os Resultados</button>
-            <button class="copy-btn" onclick="window.location.reload()">🔄 Executar Novamente</button>
-        </div>
-        
-        <div style="text-align: center; margin-top: 30px; color: #8b92a4;">
-            <p>UTMTrack Debug Automático v2.1</p>
-            <p>Gerado em: <?= date('d/m/Y H:i:s') ?></p>
-        </div>
-    </div>
+$allPathsCorrect = true;
+foreach ($requiredPaths as $name => $path) {
+    $exists = file_exists($path);
+    echo ($exists ? "✅" : "❌") . " {$name}\n";
+    echo "   Path: {$path}\n";
     
-    <script>
-        function copyResults() {
-            const text = document.body.innerText;
-            navigator.clipboard.writeText(text).then(() => {
-                alert('✅ Resultados copiados! Cole no chat.');
-            });
+    if (!$exists) {
+        $allPathsCorrect = false;
+    }
+}
+
+echo "\n========================================\n";
+echo "3️⃣  TESTES FUNCIONAIS\n";
+echo "========================================\n\n";
+
+if (file_exists($correctFile) && $allPathsCorrect) {
+    
+    // Teste 1: Verifica normalizeStatus
+    echo "🧪 TESTE 1: Função normalizeStatus()\n";
+    if (strpos(file_get_contents($projectRoot . '/core/MetaAdsSync.php'), 'normalizeStatus') !== false) {
+        echo "   ✅ Função encontrada em MetaAdsSync.php\n";
+    } else {
+        echo "   ❌ Função não encontrada!\n";
+    }
+    
+    // Teste 2: Verifica rotas
+    echo "\n🧪 TESTE 2: Rotas no Router.php\n";
+    $routerContent = file_get_contents($projectRoot . '/core/Router.php');
+    
+    $routes = [
+        'campanhas-sync-complete',
+        'sync_complete',
+        'campanhas-sync-all'
+    ];
+    
+    foreach ($routes as $route) {
+        if (preg_match("/'$route'/", $routerContent)) {
+            echo "   ✅ Rota '$route' mapeada\n";
+        } else {
+            echo "   ⚠️  Rota '$route' não encontrada\n";
+        }
+    }
+    
+    // Teste 3: Verifica JavaScript
+    echo "\n🧪 TESTE 3: JavaScript Dashboard\n";
+    $jsFile = $projectRoot . '/assets/js/utmtrack-dashboard-v2.js';
+    
+    if (file_exists($jsFile)) {
+        echo "   ✅ utmtrack-dashboard-v2.js encontrado\n";
+        
+        $jsContent = file_get_contents($jsFile);
+        if (strpos($jsContent, 'ajax-campaigns.php') !== false) {
+            echo "   ✅ Referencia ajax-campaigns.php\n";
+        } else {
+            echo "   ⚠️  Não referencia ajax-campaigns.php\n";
         }
         
-        console.log('%c🔍 DEBUG COMPLETO EXECUTADO', 'color: #10b981; font-size: 20px; font-weight: bold;');
-        console.log('Resultados:', <?= json_encode($results) ?>);
-    </script>
-</body>
-</html>
+        if (strpos($jsContent, 'syncAllCampaigns') !== false) {
+            echo "   ✅ Função syncAllCampaigns() existe\n";
+        }
+    } else {
+        echo "   ❌ JavaScript não encontrado\n";
+    }
+    
+} else {
+    echo "⚠️  Testes funcionais PULADOS (corrija os erros acima primeiro)\n";
+}
+
+echo "\n========================================\n";
+echo "📊 RESUMO\n";
+echo "========================================\n\n";
+
+if (file_exists($correctFile) && $allPathsCorrect) {
+    echo "🎉 TUDO CORRETO!\n\n";
+    echo "✅ ajax-campaigns.php está no local correto\n";
+    echo "✅ Todos os caminhos estão corretos\n";
+    echo "✅ Estrutura validada com sucesso\n\n";
+    echo "👉 PRÓXIMO PASSO:\n";
+    echo "   1. DELETE este arquivo (test_ajax_structure.php)\n";
+    echo "   2. Teste o sistema no dashboard\n";
+    echo "   3. Verifique os logs no Console (F12)\n";
+} else {
+    echo "❌ ERROS ENCONTRADOS!\n\n";
+    echo "Corrija os problemas acima antes de prosseguir.\n";
+}
+
+echo "\n========================================\n";
+echo "🔒 DELETE este arquivo depois!\n";
+echo "========================================\n";
+echo "</pre>";
+?>

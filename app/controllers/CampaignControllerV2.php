@@ -1,15 +1,18 @@
 <?php
 /**
  * ========================================
- * CAMPAIGN CONTROLLER V2.1 - CORRIGIDO
+ * CAMPAIGN CONTROLLER V3.0 - COMPLETO
  * ========================================
- * CORREÇÕES:
- * - Sincronização automática por período
- * - Carregamento de preferências de colunas
+ * BUSCA E CONSOME TODOS OS 150+ CAMPOS
+ * - ✅ 50+ campos de campanhas
+ * - ✅ 80+ campos de insights
+ * - ✅ Filtros avançados (CBO, ASC, quality_ranking)
+ * - ✅ Parse automático de JSONs
+ * - ✅ Métricas calculadas avançadas
  */
 
-require_once 'MetaAdsDataStructure.php';
-require_once 'MetaAdsSync.php';
+require_once __DIR__ . '/../../core/MetaAdsDataStructure.php';
+require_once __DIR__ . '/../../core/MetaAdsSync.php';
 
 class CampaignControllerV2 extends Controller {
     
@@ -18,40 +21,46 @@ class CampaignControllerV2 extends Controller {
     
     public function __construct() {
         parent::__construct();
-        $this->requireAuth();
-        $this->metaSync = new MetaAdsSync($this->db, $this->userId);
+        $this->auth->middleware();
+        $this->metaSync = new MetaAdsSync($this->db, $this->auth->id());
         $this->dataStructure = new MetaAdsDataStructure();
     }
     
     /**
-     * Dashboard principal com sincronização automática por período
+     * ========================================
+     * DASHBOARD PRINCIPAL - COMPLETO
+     * ========================================
      */
     public function index() {
-        // CORREÇÃO 1: Detecta período da URL
+        // Detecta período da URL
         $requestedPeriod = $_GET['period'] ?? 'maximum';
         $startDate = $_GET['start_date'] ?? null;
         $endDate = $_GET['end_date'] ?? null;
         
-        // CORREÇÃO 2: Busca último período sincronizado
+        // Flag para sincronização manual
+        $forceSync = isset($_GET['force_sync']) && $_GET['force_sync'] === '1';
+        
+        // Busca último período sincronizado
         $lastSyncPeriod = $this->getLastSyncPeriod();
         
         $syncResults = null;
         $shouldAutoSync = false;
         
-        // CORREÇÃO 3: Verifica se precisa sincronizar automaticamente
-        // Sincroniza se:
-        // 1. Período mudou OU
-        // 2. Nunca sincronizou este período OU  
-        // 3. Última sync foi há mais de 1 hora
-        if ($requestedPeriod !== $lastSyncPeriod || 
-            $this->shouldResync($requestedPeriod)) {
+        // Sincronização manual sempre executa
+        if ($forceSync) {
             $shouldAutoSync = true;
+            error_log("[CONTROLLER] 🔄 Sincronização MANUAL forçada pelo usuário");
+        }
+        // Sincronização automática se período mudou ou passou 1 hora
+        elseif ($requestedPeriod !== $lastSyncPeriod || $this->shouldResync($requestedPeriod)) {
+            $shouldAutoSync = true;
+            error_log("[CONTROLLER] 🔄 Sincronização AUTOMÁTICA por mudança de período");
         }
         
-        // CORREÇÃO 4: Executa sincronização automática se necessário
+        // Executa sincronização se necessário
         if ($shouldAutoSync) {
             try {
-                error_log("[CONTROLLER] Sincronizando automaticamente - Período: {$requestedPeriod}");
+                error_log("[CONTROLLER] Sincronizando - Período: {$requestedPeriod}");
                 
                 $syncOptions = [
                     'include_insights' => true,
@@ -85,11 +94,11 @@ class CampaignControllerV2 extends Controller {
             }
         }
         
-        // CORREÇÃO 5: Carrega preferências de colunas do usuário
+        // Carrega preferências de colunas do usuário
         $userColumns = $this->getUserColumns();
         
-        // Carrega campanhas com todos os dados
-        $campaigns = $this->getCampaignsWithFullData();
+        // ✅ Busca campanhas com TODOS os 150+ campos
+        $campaigns = $this->getCampaignsWithFullData([], $requestedPeriod, $startDate, $endDate);
         
         // Estatísticas
         $stats = $this->calculateStats($campaigns);
@@ -98,11 +107,11 @@ class CampaignControllerV2 extends Controller {
         $availableColumns = MetaAdsDataStructure::getAllFieldsByCategory();
         $tableConfig = MetaAdsDataStructure::getTableConfiguration();
         
-        // CORREÇÃO 6: Renderiza a view COM userColumns
+        // Renderiza a view
         $this->render('campaigns/index', [
             'campaigns' => $campaigns,
             'stats' => $stats,
-            'userColumns' => $userColumns, // ← CORREÇÃO: Passa para a view
+            'userColumns' => $userColumns,
             'availableColumns' => $availableColumns,
             'tableConfig' => $tableConfig,
             'metaFields' => array_merge(
@@ -113,118 +122,140 @@ class CampaignControllerV2 extends Controller {
             'startDate' => $startDate,
             'endDate' => $endDate,
             'syncResults' => $syncResults,
-            'config' => [], // Compatibilidade
-            'user' => ['id' => $this->userId] // Compatibilidade
+            'config' => $this->config,
+            'user' => $this->auth->user()
         ]);
     }
     
     /**
-     * CORREÇÃO: Busca último período sincronizado
+     * ========================================
+     * BUSCA CAMPANHAS - TODOS OS 150+ CAMPOS
+     * ========================================
      */
-    private function getLastSyncPeriod() {
-        $result = $this->db->fetch("
-            SELECT preference_value 
-            FROM user_preferences 
-            WHERE user_id = :user_id 
-            AND preference_key = 'last_sync_period'
-        ", ['user_id' => $this->userId]);
+    private function getCampaignsWithFullData($filters = [], $period = 'maximum', $startDate = null, $endDate = null) {
+        // Calcula datas do período
+        $periodDates = $this->calculatePeriodDates($period, $startDate, $endDate);
         
-        return $result ? $result['preference_value'] : null;
-    }
-    
-    /**
-     * CORREÇÃO: Salva último período sincronizado
-     */
-    private function saveLastSyncPeriod($period) {
-        $this->db->query("
-            INSERT INTO user_preferences (user_id, preference_key, preference_value)
-            VALUES (:user_id, 'last_sync_period', :period)
-            ON DUPLICATE KEY UPDATE 
-                preference_value = :period,
-                updated_at = NOW()
-        ", [
-            'user_id' => $this->userId,
-            'period' => $period
-        ]);
+        error_log("[CONTROLLER] 📅 Buscando campanhas - Período: {$period} ({$periodDates['start']} até {$periodDates['end']})");
         
-        // Também salva timestamp
-        $this->db->query("
-            INSERT INTO user_preferences (user_id, preference_key, preference_value)
-            VALUES (:user_id, 'last_sync_time', :time)
-            ON DUPLICATE KEY UPDATE 
-                preference_value = :time,
-                updated_at = NOW()
-        ", [
-            'user_id' => $this->userId,
-            'time' => time()
-        ]);
-    }
-    
-    /**
-     * CORREÇÃO: Verifica se precisa resincronizar (1 hora)
-     */
-    private function shouldResync($period) {
-        $result = $this->db->fetch("
-            SELECT preference_value 
-            FROM user_preferences 
-            WHERE user_id = :user_id 
-            AND preference_key = 'last_sync_time'
-        ", ['user_id' => $this->userId]);
-        
-        if (!$result) {
-            return true; // Nunca sincronizou
-        }
-        
-        $lastSyncTime = intval($result['preference_value']);
-        $hourAgo = time() - 3600; // 1 hora
-        
-        return $lastSyncTime < $hourAgo;
-    }
-    
-    /**
-     * CORREÇÃO: Busca colunas salvas pelo usuário
-     */
-    private function getUserColumns() {
-        $result = $this->db->fetch("
-            SELECT preference_value 
-            FROM user_preferences 
-            WHERE user_id = :user_id 
-            AND preference_key = 'campaign_columns'
-        ", ['user_id' => $this->userId]);
-        
-        if ($result && !empty($result['preference_value'])) {
-            $columns = json_decode($result['preference_value'], true);
-            if (is_array($columns) && count($columns) > 0) {
-                error_log("[CONTROLLER] ✅ Colunas do usuário carregadas: " . count($columns) . " colunas");
-                return $columns;
-            }
-        }
-        
-        error_log("[CONTROLLER] ⚠️ Usando colunas padrão (sem preferências salvas)");
-        return null; // Retorna null para usar padrão
-    }
-    
-    /**
-     * Busca campanhas com dados completos
-     */
-    private function getCampaignsWithFullData($filters = []) {
         $query = "
             SELECT 
-                c.*,
+                -- ========================================
+                -- CAMPANHAS - TODOS OS 50+ CAMPOS
+                -- ========================================
+                c.id,
+                c.user_id,
+                c.ad_account_id,
+                c.campaign_id,
+                c.campaign_name,
+                
+                -- Status
+                c.status,
+                c.effective_status,
+                c.configured_status,
+                
+                -- Objetivo e Tipo
+                c.objective,
+                c.buying_type,
+                c.can_use_spend_cap,
+                
+                -- Orçamento Básico
+                c.daily_budget,
+                c.lifetime_budget,
+                c.spend_cap,
+                c.budget_remaining,
+                
+                -- ✅ CBO e Limites Detalhados
+                c.campaign_budget_optimization,
+                c.daily_min_spend_target,
+                c.daily_spend_cap,
+                c.lifetime_min_spend_target,
+                c.lifetime_spend_cap,
+                
+                -- ✅ ASC Detection
+                c.is_asc,
+                
+                -- Lance
+                c.bid_strategy,
+                c.bid_amount,
+                c.bid_constraints,
+                
+                -- Configurações
+                c.pacing_type,
+                c.promoted_object,
+                
+                -- Categorias Especiais
+                c.special_ad_categories,
+                c.special_ad_category,
+                c.special_ad_category_country,
+                
+                -- SKAdNetwork
+                c.is_skadnetwork_attribution,
+                c.smart_promotion_type,
+                c.source_campaign_id,
+                
+                -- ✅ Issues e Recomendações
+                c.issues_info,
+                c.recommendations,
+                
+                -- ✅ Labels e Organização
+                c.adlabels,
+                c.campaign_group_id,
+                c.topline_id,
+                
+                -- ✅ Outros Campos
+                c.budget_rebalance_flag,
+                c.can_create_brand_lift_study,
+                c.has_secondary_skadnetwork_reporting,
+                c.is_budget_schedule_enabled,
+                c.iterative_split_test_configs,
+                c.last_budget_toggling_time,
+                c.upstream_events,
+                
+                -- Datas
+                c.start_time,
+                c.stop_time,
+                c.created_time,
+                c.updated_time,
+                c.last_sync,
+                
+                -- Conta de Anúncios
                 aa.account_name,
                 aa.account_id as meta_account_id,
                 aa.access_token,
-                -- Insights básicos
+                
+                -- ========================================
+                -- INSIGHTS - TODOS OS 80+ CAMPOS
+                -- ========================================
+                
+                -- Período
+                ci.date_start,
+                ci.date_stop,
+                
+                -- Métricas Básicas
                 ci.impressions,
                 ci.clicks,
                 ci.spend,
                 ci.reach,
                 ci.frequency,
+                ci.social_spend,
+                
+                -- CTR e Custos Básicos
                 ci.ctr,
                 ci.cpc,
                 ci.cpm,
                 ci.cpp,
-                -- Conversões
+                
+                -- ✅ Custos Detalhados
+                ci.cost_per_action_type,
+                ci.cost_per_unique_action_type,
+                ci.cost_per_conversion,
+                ci.cost_per_inline_link_click,
+                ci.cost_per_inline_post_engagement,
+                ci.cost_per_unique_click,
+                ci.cost_per_unique_inline_link_click,
+                
+                -- Conversões Principais
                 ci.purchase,
                 ci.purchase_value,
                 ci.add_to_cart,
@@ -235,13 +266,33 @@ class CampaignControllerV2 extends Controller {
                 ci.complete_registration,
                 ci.view_content,
                 ci.search,
-                -- Vídeo
+                
+                -- ✅ Conversões Adicionais
+                ci.add_payment_info,
+                ci.add_to_wishlist,
+                ci.contact,
+                ci.customize_product,
+                ci.donate,
+                ci.find_location,
+                ci.schedule,
+                ci.start_trial,
+                ci.submit_application,
+                ci.subscribe,
+                
+                -- Vídeo Completo
                 ci.video_play_actions,
                 ci.video_p25_watched,
                 ci.video_p50_watched,
                 ci.video_p75_watched,
+                ci.video_p95_watched,
                 ci.video_p100_watched,
                 ci.thruplay,
+                
+                -- ✅ Vídeo Detalhado
+                ci.video_avg_time_watched_actions,
+                ci.video_continuous_2_sec_watched_actions,
+                ci.video_30_sec_watched_actions,
+                
                 -- Engajamento
                 ci.post_engagement,
                 ci.page_engagement,
@@ -249,30 +300,106 @@ class CampaignControllerV2 extends Controller {
                 ci.post_saves,
                 ci.post_shares,
                 ci.post_comments,
+                ci.photo_view,
                 ci.inline_link_clicks,
                 ci.inline_link_click_ctr,
-                -- Qualidade
+                ci.inline_post_engagement,
+                
+                -- ✅ Rankings de Qualidade (CRÍTICO!)
                 ci.quality_ranking,
                 ci.engagement_rate_ranking,
                 ci.conversion_rate_ranking,
-                -- App
+                
+                -- ✅ Leilão
+                ci.auction_bid,
+                ci.auction_competitiveness,
+                
+                -- ✅ Links Externos
+                ci.outbound_clicks,
+                ci.outbound_clicks_ctr,
+                ci.unique_outbound_clicks,
+                ci.unique_outbound_clicks_ctr,
+                ci.website_ctr,
+                
+                -- ✅ Mobile App
                 ci.app_install,
                 ci.app_use,
-                -- Calculados
+                ci.app_custom_event_fb_mobile_achievement_unlocked,
+                ci.app_custom_event_fb_mobile_add_payment_info,
+                ci.app_custom_event_fb_mobile_add_to_cart,
+                ci.app_custom_event_fb_mobile_add_to_wishlist,
+                ci.app_custom_event_fb_mobile_complete_registration,
+                ci.app_custom_event_fb_mobile_content_view,
+                ci.app_custom_event_fb_mobile_initiated_checkout,
+                ci.app_custom_event_fb_mobile_level_achieved,
+                ci.app_custom_event_fb_mobile_purchase,
+                ci.app_custom_event_fb_mobile_rate,
+                ci.app_custom_event_fb_mobile_search,
+                ci.app_custom_event_fb_mobile_spent_credits,
+                ci.app_custom_event_fb_mobile_tutorial_completion,
+                
+                -- ✅ Brand (Recall)
+                ci.estimated_ad_recall_rate,
+                ci.estimated_ad_recall_lift,
+                ci.estimated_ad_recallers,
+                
+                -- ✅ Catálogo (E-commerce)
+                ci.catalog_segment_value,
+                ci.catalog_segment_actions,
+                ci.catalog_segment_value_mobile_purchase_roas,
+                ci.catalog_segment_value_omni_purchase_roas,
+                ci.catalog_segment_value_website_purchase_roas,
+                
+                -- ✅ Canvas/Instant Experience
+                ci.instant_experience_clicks_to_open,
+                ci.instant_experience_clicks_to_start,
+                ci.instant_experience_outbound_clicks,
+                
+                -- ✅ DDA
+                ci.dda_results,
+                
+                -- ✅ Conversões por Fonte
+                ci.mobile_app_purchase_roas,
+                ci.website_purchase_roas,
+                
+                -- ✅ Cliques Únicos
+                ci.unique_clicks,
+                ci.unique_ctr,
+                ci.unique_inline_link_clicks,
+                ci.unique_inline_link_click_ctr,
+                ci.unique_link_clicks_ctr,
+                
+                -- ✅ Actions e Conversions
+                ci.actions,
+                ci.action_values,
+                ci.conversions,
+                ci.conversion_values,
+                ci.cost_per_thruplay,
+                
+                -- Métricas Calculadas
                 ci.roas,
                 ci.roi,
                 ci.margin,
                 ci.cpa,
+                ci.cpi,
+                ci.cpl,
                 ci.conversion_rate
+                
             FROM campaigns c
             LEFT JOIN ad_accounts aa ON aa.id = c.ad_account_id
             LEFT JOIN campaign_insights ci ON ci.campaign_id = c.id
+                AND ci.date_start = :date_start
+                AND ci.date_stop = :date_stop
             WHERE c.user_id = :user_id
         ";
         
-        $params = ['user_id' => $this->userId];
+        $params = [
+            'user_id' => $this->auth->id(),
+            'date_start' => $periodDates['start'],
+            'date_stop' => $periodDates['end']
+        ];
         
-        // Aplica filtros
+        // ✅ Aplica filtros avançados
         if (!empty($filters['status'])) {
             $query .= " AND c.status = :status";
             $params['status'] = $filters['status'];
@@ -294,24 +421,93 @@ class CampaignControllerV2 extends Controller {
             $params['search_id'] = '%' . $filters['search'] . '%';
         }
         
+        // ✅ NOVO: Filtro por CBO
+        if (isset($filters['cbo'])) {
+            $query .= " AND c.campaign_budget_optimization = :cbo";
+            $params['cbo'] = $filters['cbo'] ? 1 : 0;
+        }
+        
+        // ✅ NOVO: Filtro por ASC
+        if (isset($filters['asc'])) {
+            $query .= " AND c.is_asc = :asc";
+            $params['asc'] = $filters['asc'] ? 1 : 0;
+        }
+        
+        // ✅ NOVO: Filtro por issues
+        if (isset($filters['has_issues'])) {
+            $query .= " AND c.issues_info IS NOT NULL";
+        }
+        
+        // ✅ NOVO: Filtro por quality_ranking
+        if (!empty($filters['quality_ranking'])) {
+            $query .= " AND ci.quality_ranking = :quality_ranking";
+            $params['quality_ranking'] = $filters['quality_ranking'];
+        }
+        
         // Ordenação
-        $query .= " ORDER BY c.created_at DESC";
+        $orderBy = $filters['order_by'] ?? 'created_time';
+        $orderDirection = $filters['order_direction'] ?? 'DESC';
+        $query .= " ORDER BY c.{$orderBy} {$orderDirection}";
+        
+        // Limite
+        if (!empty($filters['limit'])) {
+            $query .= " LIMIT " . intval($filters['limit']);
+        }
         
         $campaigns = $this->db->fetchAll($query, $params);
         
-        // Processa métricas calculadas
+        error_log("[CONTROLLER] ✅ Encontradas " . count($campaigns) . " campanhas com TODOS os 150+ campos");
+        
+        // Processa métricas calculadas e parse de JSONs
         foreach ($campaigns as &$campaign) {
             $campaign = $this->calculateCampaignMetrics($campaign);
+            $campaign = $this->parseJsonFields($campaign);
         }
         
         return $campaigns;
     }
     
     /**
-     * Calcula métricas da campanha
+     * ✅ Parse automático dos campos JSON
+     */
+    private function parseJsonFields($campaign) {
+        $jsonFields = [
+            'issues_info',
+            'recommendations',
+            'adlabels',
+            'bid_constraints',
+            'pacing_type',
+            'promoted_object',
+            'special_ad_categories',
+            'special_ad_category_country',
+            'iterative_split_test_configs',
+            'upstream_events',
+            'cost_per_action_type',
+            'actions',
+            'action_values',
+            'conversions',
+            'conversion_values',
+            'catalog_segment_actions',
+            'dda_results'
+        ];
+        
+        foreach ($jsonFields as $field) {
+            if (!empty($campaign[$field]) && is_string($campaign[$field])) {
+                $decoded = json_decode($campaign[$field], true);
+                if (json_last_error() === JSON_ERROR_NONE) {
+                    $campaign[$field] = $decoded;
+                }
+            }
+        }
+        
+        return $campaign;
+    }
+    
+    /**
+     * ✅ Calcula métricas avançadas
      */
     private function calculateCampaignMetrics($campaign) {
-        // ROAS
+        // ROAS, ROI, Margem
         if ($campaign['spend'] > 0 && $campaign['purchase_value'] > 0) {
             $campaign['roas'] = round($campaign['purchase_value'] / $campaign['spend'], 2);
             $campaign['roi'] = round((($campaign['purchase_value'] - $campaign['spend']) / $campaign['spend']) * 100, 2);
@@ -350,11 +546,186 @@ class CampaignControllerV2 extends Controller {
             $campaign['conversion_rate'] = 0;
         }
         
+        // ✅ Taxa de engajamento
+        if ($campaign['impressions'] > 0) {
+            $campaign['engagement_rate'] = round(($campaign['post_engagement'] / $campaign['impressions']) * 100, 2);
+        } else {
+            $campaign['engagement_rate'] = 0;
+        }
+        
+        // ✅ Taxa de conclusão de vídeo
+        if ($campaign['video_play_actions'] > 0) {
+            $campaign['video_completion_rate'] = round(($campaign['video_p100_watched'] / $campaign['video_play_actions']) * 100, 2);
+        } else {
+            $campaign['video_completion_rate'] = 0;
+        }
+        
+        // ✅ ROAS por canal
+        if (!empty($campaign['mobile_app_purchase_roas'])) {
+            $campaign['mobile_roas'] = floatval($campaign['mobile_app_purchase_roas']);
+        } else {
+            $campaign['mobile_roas'] = 0;
+        }
+        
+        if (!empty($campaign['website_purchase_roas'])) {
+            $campaign['web_roas'] = floatval($campaign['website_purchase_roas']);
+        } else {
+            $campaign['web_roas'] = 0;
+        }
+        
+        // ✅ Click-through rate de vídeo
+        if ($campaign['video_play_actions'] > 0) {
+            $campaign['video_ctr'] = round(($campaign['clicks'] / $campaign['video_play_actions']) * 100, 2);
+        } else {
+            $campaign['video_ctr'] = 0;
+        }
+        
         return $campaign;
     }
     
     /**
-     * Sincronização completa via AJAX
+     * Calcula datas do período
+     */
+    private function calculatePeriodDates($period, $startDate = null, $endDate = null) {
+        $today = date('Y-m-d');
+        
+        switch ($period) {
+            case 'today':
+                return ['start' => $today, 'end' => $today];
+                
+            case 'yesterday':
+                $yesterday = date('Y-m-d', strtotime('-1 day'));
+                return ['start' => $yesterday, 'end' => $yesterday];
+                
+            case 'last_7d':
+                return [
+                    'start' => date('Y-m-d', strtotime('-7 days')),
+                    'end' => $today
+                ];
+                
+            case 'last_30d':
+                return [
+                    'start' => date('Y-m-d', strtotime('-30 days')),
+                    'end' => $today
+                ];
+                
+            case 'this_month':
+                return [
+                    'start' => date('Y-m-01'),
+                    'end' => $today
+                ];
+                
+            case 'last_month':
+                return [
+                    'start' => date('Y-m-01', strtotime('first day of last month')),
+                    'end' => date('Y-m-t', strtotime('last day of last month'))
+                ];
+                
+            case 'custom':
+                if ($startDate && $endDate) {
+                    return ['start' => $startDate, 'end' => $endDate];
+                }
+                return [
+                    'start' => date('Y-m-d', strtotime('-2 years')),
+                    'end' => $today
+                ];
+                
+            case 'maximum':
+            default:
+                return [
+                    'start' => date('Y-m-d', strtotime('-2 years')),
+                    'end' => $today
+                ];
+        }
+    }
+    
+    /**
+     * Busca último período sincronizado
+     */
+    private function getLastSyncPeriod() {
+        $result = $this->db->fetch("
+            SELECT preference_value 
+            FROM user_preferences 
+            WHERE user_id = :user_id 
+            AND preference_key = 'last_sync_period'
+        ", ['user_id' => $this->auth->id()]);
+        
+        return $result ? $result['preference_value'] : null;
+    }
+    
+    /**
+     * Salva último período sincronizado
+     */
+    private function saveLastSyncPeriod($period) {
+        $this->db->query("
+            INSERT INTO user_preferences (user_id, preference_key, preference_value)
+            VALUES (:user_id, 'last_sync_period', :period)
+            ON DUPLICATE KEY UPDATE 
+                preference_value = :period,
+                updated_at = NOW()
+        ", [
+            'user_id' => $this->auth->id(),
+            'period' => $period
+        ]);
+        
+        $this->db->query("
+            INSERT INTO user_preferences (user_id, preference_key, preference_value)
+            VALUES (:user_id, 'last_sync_time', :time)
+            ON DUPLICATE KEY UPDATE 
+                preference_value = :time,
+                updated_at = NOW()
+        ", [
+            'user_id' => $this->auth->id(),
+            'time' => time()
+        ]);
+    }
+    
+    /**
+     * Verifica se precisa resincronizar (1 hora)
+     */
+    private function shouldResync($period) {
+        $result = $this->db->fetch("
+            SELECT preference_value 
+            FROM user_preferences 
+            WHERE user_id = :user_id 
+            AND preference_key = 'last_sync_time'
+        ", ['user_id' => $this->auth->id()]);
+        
+        if (!$result) {
+            return true;
+        }
+        
+        $lastSyncTime = intval($result['preference_value']);
+        $hourAgo = time() - 3600;
+        
+        return $lastSyncTime < $hourAgo;
+    }
+    
+    /**
+     * Busca colunas salvas pelo usuário
+     */
+    private function getUserColumns() {
+        $result = $this->db->fetch("
+            SELECT preference_value 
+            FROM user_preferences 
+            WHERE user_id = :user_id 
+            AND preference_key = 'campaign_columns'
+        ", ['user_id' => $this->auth->id()]);
+        
+        if ($result && !empty($result['preference_value'])) {
+            $columns = json_decode($result['preference_value'], true);
+            if (is_array($columns) && count($columns) > 0) {
+                return $columns;
+            }
+        }
+        
+        return null;
+    }
+    
+    /**
+     * ========================================
+     * SINCRONIZAÇÃO MANUAL VIA AJAX
+     * ========================================
      */
     public function syncComplete() {
         if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
@@ -362,6 +733,8 @@ class CampaignControllerV2 extends Controller {
         }
         
         $data = json_decode(file_get_contents('php://input'), true);
+        
+        error_log("[CONTROLLER] 🔄 SINCRONIZAÇÃO MANUAL via AJAX");
         
         $options = [
             'date_preset' => $data['date_preset'] ?? 'maximum',
@@ -374,16 +747,13 @@ class CampaignControllerV2 extends Controller {
         ];
         
         try {
-            // Executa sincronização completa
             $results = $this->metaSync->syncAll($options);
             
-            // Salva período sincronizado
             $this->saveLastSyncPeriod($options['date_preset']);
             
-            // Busca campanhas atualizadas
-            $campaigns = $this->getCampaignsWithFullData();
+            $periodDates = $this->calculatePeriodDates($options['date_preset']);
+            $campaigns = $this->getCampaignsWithFullData([], $options['date_preset']);
             
-            // Calcula estatísticas
             $stats = $this->calculateStats($campaigns);
             
             $this->jsonResponse([
@@ -395,6 +765,7 @@ class CampaignControllerV2 extends Controller {
             ]);
             
         } catch (Exception $e) {
+            error_log("[CONTROLLER] ❌ Erro: " . $e->getMessage());
             $this->jsonError($e->getMessage());
         }
     }
@@ -413,15 +784,13 @@ class CampaignControllerV2 extends Controller {
         $field = $data['field'] ?? '';
         $value = $data['value'] ?? null;
         
-        // Validação
         $allowedFields = ['campaign_name', 'daily_budget', 'lifetime_budget', 'spend_cap', 
                          'status', 'bid_strategy', 'start_time', 'stop_time'];
         
         if (!in_array($field, $allowedFields)) {
-            $this->jsonError('Campo não permitido para edição');
+            $this->jsonError('Campo não permitido');
         }
         
-        // Busca campanha
         $campaign = $this->db->fetch("
             SELECT c.*, aa.access_token 
             FROM campaigns c
@@ -429,21 +798,19 @@ class CampaignControllerV2 extends Controller {
             WHERE c.id = :id AND c.user_id = :user_id
         ", [
             'id' => $campaignId,
-            'user_id' => $this->userId
+            'user_id' => $this->auth->id()
         ]);
         
         if (!$campaign) {
             $this->jsonError('Campanha não encontrada');
         }
         
-        // Atualiza localmente
         $this->db->update('campaigns', 
             [$field => $value],
             'id = :id',
             ['id' => $campaignId]
         );
         
-        // Tenta atualizar no Meta
         $metaUpdated = false;
         $metaError = null;
         
@@ -475,7 +842,6 @@ class CampaignControllerV2 extends Controller {
     private function updateInMeta($campaignId, $field, $value, $accessToken) {
         $url = "https://graph.facebook.com/v18.0/{$campaignId}";
         
-        // Mapeia campos para API do Meta
         $fieldMap = [
             'campaign_name' => 'name',
             'daily_budget' => 'daily_budget',
@@ -489,9 +855,8 @@ class CampaignControllerV2 extends Controller {
         
         $metaField = $fieldMap[$field] ?? $field;
         
-        // Prepara valor baseado no tipo
         if (in_array($field, ['daily_budget', 'lifetime_budget', 'spend_cap'])) {
-            $value = intval($value * 100); // Converte para centavos
+            $value = intval($value * 100);
         }
         
         $postData = [
@@ -586,21 +951,19 @@ class CampaignControllerV2 extends Controller {
             WHERE c.id = :id AND c.user_id = :user_id
         ", [
             'id' => $campaignId,
-            'user_id' => $this->userId
+            'user_id' => $this->auth->id()
         ]);
         
         if (!$campaign) {
             throw new Exception('Campanha não encontrada');
         }
         
-        // Atualiza localmente
         $this->db->update('campaigns', 
             ['status' => strtolower($status)],
             'id = :id',
             ['id' => $campaignId]
         );
         
-        // Atualiza no Meta se possível
         if ($campaign['campaign_id'] && $campaign['access_token']) {
             $this->updateInMeta(
                 $campaign['campaign_id'],
@@ -612,7 +975,7 @@ class CampaignControllerV2 extends Controller {
     }
     
     /**
-     * CORREÇÃO: Salva configuração de colunas
+     * Salva configuração de colunas
      */
     public function saveColumns() {
         if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
@@ -626,9 +989,6 @@ class CampaignControllerV2 extends Controller {
             $this->jsonError('Colunas inválidas');
         }
         
-        error_log("[CONTROLLER] 💾 Salvando colunas: " . implode(', ', $columns));
-        
-        // Salva preferência do usuário
         $this->db->query("
             INSERT INTO user_preferences (user_id, preference_key, preference_value, updated_at)
             VALUES (:user_id, 'campaign_columns', :value, NOW())
@@ -636,23 +996,9 @@ class CampaignControllerV2 extends Controller {
                 preference_value = :value,
                 updated_at = NOW()
         ", [
-            'user_id' => $this->userId,
+            'user_id' => $this->auth->id(),
             'value' => json_encode($columns)
         ]);
-        
-        // Verifica se salvou
-        $saved = $this->db->fetch("
-            SELECT preference_value 
-            FROM user_preferences 
-            WHERE user_id = :user_id 
-            AND preference_key = 'campaign_columns'
-        ", ['user_id' => $this->userId]);
-        
-        if ($saved) {
-            error_log("[CONTROLLER] ✅ Colunas salvas com sucesso no banco");
-        } else {
-            error_log("[CONTROLLER] ❌ ERRO: Colunas NÃO foram salvas!");
-        }
         
         $this->jsonResponse([
             'success' => true,
@@ -667,8 +1013,9 @@ class CampaignControllerV2 extends Controller {
     public function export() {
         $format = $_GET['format'] ?? 'csv';
         $filters = $_GET['filters'] ?? [];
+        $period = $_GET['period'] ?? 'maximum';
         
-        $campaigns = $this->getCampaignsWithFullData($filters);
+        $campaigns = $this->getCampaignsWithFullData($filters, $period);
         
         switch ($format) {
             case 'csv':
@@ -690,16 +1037,12 @@ class CampaignControllerV2 extends Controller {
         header('Content-Disposition: attachment; filename="campaigns_' . date('Y-m-d_H-i-s') . '.csv"');
         
         $output = fopen('php://output', 'w');
-        
-        // BOM para UTF-8
         fprintf($output, chr(0xEF).chr(0xBB).chr(0xBF));
         
         if (!empty($campaigns)) {
-            // Headers
             $headers = array_keys($campaigns[0]);
             fputcsv($output, $headers);
             
-            // Dados
             foreach ($campaigns as $campaign) {
                 fputcsv($output, $campaign);
             }
@@ -743,6 +1086,9 @@ class CampaignControllerV2 extends Controller {
         $stats = [
             'total_campaigns' => count($campaigns),
             'active_campaigns' => 0,
+            'cbo_campaigns' => 0,
+            'asc_campaigns' => 0,
+            'campaigns_with_issues' => 0,
             'total_spend' => 0,
             'total_revenue' => 0,
             'total_impressions' => 0,
@@ -756,6 +1102,19 @@ class CampaignControllerV2 extends Controller {
             if ($campaign['status'] === 'active') {
                 $stats['active_campaigns']++;
             }
+            
+            if (!empty($campaign['campaign_budget_optimization'])) {
+                $stats['cbo_campaigns']++;
+            }
+            
+            if (!empty($campaign['is_asc'])) {
+                $stats['asc_campaigns']++;
+            }
+            
+            if (!empty($campaign['issues_info'])) {
+                $stats['campaigns_with_issues']++;
+            }
+            
             $stats['total_spend'] += $campaign['spend'] ?? 0;
             $stats['total_revenue'] += $campaign['purchase_value'] ?? 0;
             $stats['total_impressions'] += $campaign['impressions'] ?? 0;
@@ -789,7 +1148,7 @@ class CampaignControllerV2 extends Controller {
         
         $message = !empty($parts) ? 
             "Sincronizados: " . implode(', ', $parts) : 
-            "Nenhum dado novo para sincronizar";
+            "Nenhum dado novo";
         
         if (isset($results['campaigns']['errors']) && !empty($results['campaigns']['errors'])) {
             $message .= " | " . count($results['campaigns']['errors']) . " erro(s)";
