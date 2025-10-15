@@ -1,6 +1,7 @@
 <?php
 /**
- * UTMTrack - Controller de Webhooks
+ * UTMTrack - Controller de Webhooks ATUALIZADO
+ * Sistema Universal de Webhooks
  * Arquivo: app/controllers/WebhookController.php
  */
 
@@ -62,18 +63,35 @@ class WebhookController extends Controller {
         
         $userId = $this->auth->id();
         
+        // Coleta eventos
+        $events = $this->post('events', '[]');
+        if (is_string($events)) {
+            $events = json_decode($events, true) ?? [];
+        }
+        
+        // Coleta métodos de pagamento
+        $paymentMethods = $this->post('payment_methods', '[]');
+        if (is_string($paymentMethods)) {
+            $paymentMethods = json_decode($paymentMethods, true) ?? [];
+        }
+        
+        // Valida métodos de pagamento (apenas os 3 permitidos)
+        $validPaymentMethods = ['credit_card', 'pix', 'boleto'];
+        $paymentMethods = array_values(array_intersect($paymentMethods, $validPaymentMethods));
+        
         $data = [
             'name' => $this->sanitize($this->post('name')),
-            'platform' => $this->sanitize($this->post('platform')),
+            'platform' => 'custom', // Sempre custom agora
             'product_id' => $this->post('product_id') ?: null,
-            'secret_key' => bin2hex(random_bytes(16)), // Gera chave secreta
+            'secret_key' => bin2hex(random_bytes(16)),
+            'events' => json_encode($events),
+            'payment_methods' => json_encode($paymentMethods),
             'status' => 'active'
         ];
         
         // Valida
         $errors = $this->validate($data, [
-            'name' => 'required|min:3',
-            'platform' => 'required'
+            'name' => 'required|min:3'
         ]);
         
         if (!empty($errors)) {
@@ -87,7 +105,7 @@ class WebhookController extends Controller {
         ]));
         
         // Gera URL do webhook
-        $webhookUrl = $this->config['base_url'] . '/../api/webhook.php?id=' . $webhookId . '&key=' . $data['secret_key'];
+        $webhookUrl = $this->config['base_url'] . '/api/webhook.php?id=' . $webhookId . '&key=' . $data['secret_key'];
         
         $this->json([
             'success' => true,
@@ -129,10 +147,28 @@ class WebhookController extends Controller {
             return;
         }
         
+        // Coleta eventos
+        $events = $this->post('events', '[]');
+        if (is_string($events)) {
+            $events = json_decode($events, true) ?? [];
+        }
+        
+        // Coleta métodos de pagamento
+        $paymentMethods = $this->post('payment_methods', '[]');
+        if (is_string($paymentMethods)) {
+            $paymentMethods = json_decode($paymentMethods, true) ?? [];
+        }
+        
+        // Valida métodos de pagamento (apenas os 3 permitidos)
+        $validPaymentMethods = ['credit_card', 'pix', 'boleto'];
+        $paymentMethods = array_values(array_intersect($paymentMethods, $validPaymentMethods));
+        
         $data = [
             'name' => $this->sanitize($this->post('name')),
-            'platform' => $this->sanitize($this->post('platform')),
+            'platform' => 'custom', // Sempre custom
             'product_id' => $this->post('product_id') ?: null,
+            'events' => json_encode($events),
+            'payment_methods' => json_encode($paymentMethods),
             'status' => $this->post('status', 'active')
         ];
         
@@ -194,10 +230,11 @@ class WebhookController extends Controller {
     
     /**
      * Buscar webhook por ID
+     * CORRIGIDO: Renomeado de get() para getWebhook()
      */
-    public function get() {
+    public function getWebhook() {
         $userId = $this->auth->id();
-        $webhookId = $this->get('id');
+        $webhookId = parent::get('id');
         
         if (empty($webhookId)) {
             $this->json(['success' => false, 'message' => 'ID não informado'], 400);
@@ -217,8 +254,12 @@ class WebhookController extends Controller {
             return;
         }
         
+        // Decodifica eventos e métodos de pagamento
+        $webhook['events'] = json_decode($webhook['events'] ?? '[]', true);
+        $webhook['payment_methods'] = json_decode($webhook['payment_methods'] ?? '[]', true);
+        
         // Gera URL
-        $webhook['url'] = $this->config['base_url'] . '/../api/webhook.php?id=' . $webhook['id'] . '&key=' . $webhook['secret_key'];
+        $webhook['url'] = $this->config['base_url'] . '/api/webhook.php?id=' . $webhook['id'] . '&key=' . $webhook['secret_key'];
         
         $this->json([
             'success' => true,
@@ -231,7 +272,7 @@ class WebhookController extends Controller {
      */
     public function logs() {
         $userId = $this->auth->id();
-        $webhookId = $this->get('id');
+        $webhookId = parent::get('id');
         
         if (empty($webhookId)) {
             $this->redirect('index.php?page=webhooks');
@@ -251,6 +292,10 @@ class WebhookController extends Controller {
             $this->redirect('index.php?page=webhooks');
             return;
         }
+        
+        // Decodifica eventos e métodos
+        $webhook['events'] = json_decode($webhook['events'] ?? '[]', true);
+        $webhook['payment_methods'] = json_decode($webhook['payment_methods'] ?? '[]', true);
         
         // Busca logs
         $logs = $this->db->fetchAll("
@@ -295,11 +340,20 @@ class WebhookController extends Controller {
             return;
         }
         
-        // Dados de teste baseados na plataforma
-        $testData = $this->getTestData($webhook['platform']);
+        // Dados de teste
+        $testData = [
+            'event' => 'purchase_approved',
+            'transaction_id' => 'TEST-' . time(),
+            'customer_name' => 'Cliente Teste',
+            'customer_email' => 'teste@email.com',
+            'amount' => 197.00,
+            'payment_method' => 'pix',
+            'status' => 'approved',
+            'product_name' => 'Produto Teste'
+        ];
         
-        // Simula envio
-        $webhookUrl = $this->config['base_url'] . '/../api/webhook.php?id=' . $webhook['id'] . '&key=' . $webhook['secret_key'];
+        // URL do webhook
+        $webhookUrl = $this->config['base_url'] . '/api/webhook.php?id=' . $webhook['id'] . '&key=' . $webhook['secret_key'];
         
         $this->json([
             'success' => true,
@@ -310,27 +364,54 @@ class WebhookController extends Controller {
     }
     
     /**
-     * Dados de teste por plataforma
+     * Regenerar chave secreta
      */
-    private function getTestData($platform) {
-        $baseData = [
-            'transaction_id' => 'TEST-' . time(),
-            'customer_name' => 'Cliente Teste',
-            'customer_email' => 'teste@email.com',
-            'amount' => 197.00,
-            'status' => 'approved',
-            'payment_method' => 'pix'
-        ];
-        
-        switch ($platform) {
-            case 'hotmart':
-                return array_merge($baseData, ['event' => 'PURCHASE_COMPLETE']);
-            case 'kiwify':
-                return array_merge($baseData, ['order_status' => 'paid']);
-            case 'eduzz':
-                return array_merge($baseData, ['sales_status' => 4]);
-            default:
-                return $baseData;
+    public function regenerateKey() {
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            $this->json(['success' => false, 'message' => 'Método inválido'], 405);
+            return;
         }
+        
+        $userId = $this->auth->id();
+        $webhookId = $this->post('webhook_id');
+        
+        if (empty($webhookId)) {
+            $this->json(['success' => false, 'message' => 'ID do webhook não informado'], 400);
+            return;
+        }
+        
+        // Verifica se webhook pertence ao usuário
+        $webhook = $this->db->fetch("
+            SELECT id FROM webhooks 
+            WHERE id = :id AND user_id = :user_id
+        ", [
+            'id' => $webhookId,
+            'user_id' => $userId
+        ]);
+        
+        if (!$webhook) {
+            $this->json(['success' => false, 'message' => 'Webhook não encontrado'], 404);
+            return;
+        }
+        
+        // Gera nova chave
+        $newKey = bin2hex(random_bytes(16));
+        
+        // Atualiza
+        $this->db->update('webhooks', 
+            ['secret_key' => $newKey],
+            'id = :id',
+            ['id' => $webhookId]
+        );
+        
+        // Nova URL
+        $webhookUrl = $this->config['base_url'] . '/api/webhook.php?id=' . $webhookId . '&key=' . $newKey;
+        
+        $this->json([
+            'success' => true,
+            'message' => 'Chave regenerada com sucesso!',
+            'secret_key' => $newKey,
+            'webhook_url' => $webhookUrl
+        ]);
     }
 }

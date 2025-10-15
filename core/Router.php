@@ -1,9 +1,10 @@
 <?php
 /**
  * UTMTrack - Sistema de Rotas COMPLETO
- * Versão 5.5 - Com Sistema Híbrido de Produtos
+ * Versão 5.6 - Com Sistema Universal de Webhooks
  * 
  * Correções nesta versão:
+ * - Rotas de webhooks atualizadas (getWebhook + regenerateKey)
  * - Rotas de produtos corrigidas (show ao invés de get)
  * - Sistema híbrido de produtos implementado
  * - Todas as funcionalidades anteriores mantidas
@@ -227,14 +228,16 @@ class Router {
             'sales-import' => ['SalesController', 'import'],
             
             // ========================================
-            // WEBHOOKS
+            // WEBHOOKS - SISTEMA UNIVERSAL ✅ ATUALIZADO
             // ========================================
             'webhooks' => ['WebhookController', 'index'],
             'webhook-create' => ['WebhookController', 'create'],
             'webhook-update' => ['WebhookController', 'update'],
             'webhook-delete' => ['WebhookController', 'delete'],
-            'webhook-get' => ['WebhookController', 'get'],
+            'webhook-get' => ['WebhookController', 'getWebhook'], // ✅ CORRIGIDO: get → getWebhook
             'webhook-logs' => ['WebhookController', 'logs'],
+            'webhook-test' => ['WebhookController', 'test'],
+            'webhook-regenerate-key' => ['WebhookController', 'regenerateKey'], // ✅ NOVO
             
             // ========================================
             // RELATÓRIOS
