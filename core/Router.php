@@ -1,13 +1,14 @@
 <?php
 /**
  * UTMTrack - Sistema de Rotas COMPLETO
- * Versão 5.6 - Com Sistema Universal de Webhooks
+ * Versão 5.7 - Com Suporte a Controllers V2
  * 
  * Correções nesta versão:
+ * - ✅ Suporte para CampaignControllerV2, AdSetControllerV2, AdControllerV2
+ * - Sistema de aliases automático para controllers V2
  * - Rotas de webhooks atualizadas (getWebhook + regenerateKey)
  * - Rotas de produtos corrigidas (show ao invés de get)
  * - Sistema híbrido de produtos implementado
- * - Todas as funcionalidades anteriores mantidas
  * 
  * Arquivo: core/Router.php
  */
@@ -308,10 +309,28 @@ class Router {
     }
     
     /**
-     * Chama método do controller
+     * Chama método do controller com suporte a Controllers V2
      */
     private function callController($controllerName, $methodName) {
-        $controllerPath = dirname(__DIR__) . '/app/controllers/' . $controllerName . '.php';
+        // 🔥 MAPEAMENTO DE ALIASES - Controllers V2
+        // Se o arquivo V2 existir, usa ele ao invés do padrão
+        $controllerAliases = [
+            'CampaignController' => 'CampaignControllerV2',
+            'AdSetController' => 'AdSetControllerV2',
+            'AdController' => 'AdControllerV2',
+            // Adicione outros controllers V2 aqui conforme necessário
+        ];
+        
+        // Verifica se existe versão V2 do controller
+        $actualControllerName = $controllerName;
+        if (isset($controllerAliases[$controllerName])) {
+            $v2Path = dirname(__DIR__) . '/app/controllers/' . $controllerAliases[$controllerName] . '.php';
+            if (file_exists($v2Path)) {
+                $actualControllerName = $controllerAliases[$controllerName];
+            }
+        }
+        
+        $controllerPath = dirname(__DIR__) . '/app/controllers/' . $actualControllerName . '.php';
         
         if (!file_exists($controllerPath)) {
             // Tenta criar controller temporário para páginas "Em breve"
@@ -324,32 +343,33 @@ class Router {
                 header('Content-Type: application/json');
                 echo json_encode([
                     'success' => false,
-                    'message' => "Controller não encontrado: {$controllerName}"
+                    'message' => "Controller não encontrado: {$actualControllerName}"
                 ]);
                 exit;
             }
             
-            $this->error("Controller não encontrado: {$controllerName}");
+            $this->error("Controller não encontrado: {$actualControllerName}");
             return false;
         }
         
         require_once $controllerPath;
         
-        if (!class_exists($controllerName)) {
+        // Verifica se a classe existe com o nome V2
+        if (!class_exists($actualControllerName)) {
             if ($this->isAjax()) {
                 header('Content-Type: application/json');
                 echo json_encode([
                     'success' => false,
-                    'message' => "Classe não encontrada: {$controllerName}"
+                    'message' => "Classe não encontrada: {$actualControllerName}"
                 ]);
                 exit;
             }
             
-            $this->error("Classe do controller não encontrada: {$controllerName}");
+            $this->error("Classe do controller não encontrada: {$actualControllerName}");
             return false;
         }
         
-        $controller = new $controllerName();
+        $controller = new $actualControllerName();
         
         if (!method_exists($controller, $methodName)) {
             // Se o método não existe mas é syncAll, tenta chamar sync
@@ -363,7 +383,7 @@ class Router {
                     header('Content-Type: application/json');
                     echo json_encode([
                         'success' => false,
-                        'message' => "O método {$methodName} ainda não foi implementado no {$controllerName}. Por favor, adicione este método ao controller."
+                        'message' => "O método {$methodName} ainda não foi implementado no {$actualControllerName}. Por favor, adicione este método ao controller."
                     ]);
                     exit;
                 }
@@ -373,12 +393,12 @@ class Router {
                 header('Content-Type: application/json');
                 echo json_encode([
                     'success' => false,
-                    'message' => "Método não encontrado: {$controllerName}@{$methodName}"
+                    'message' => "Método não encontrado: {$actualControllerName}@{$methodName}"
                 ]);
                 exit;
             }
             
-            $this->error("Método não encontrado: {$controllerName}@{$methodName}");
+            $this->error("Método não encontrado: {$actualControllerName}@{$methodName}");
             return false;
         }
         

@@ -4,14 +4,14 @@
  * CAMINHO: /utmtrack/ajax_sync.php
  * ========================================
  * 
- * Versão 3.0 - Sincroniza TUDO com Meta Ads
+ * Versão 3.1 - CORRIGIDO: Detecção ASC/CBO
  * ✅ Campanhas (nome, status, orçamento)
- * ✅ AdSets (NOVO)
- * ✅ Ads (NOVO)
- * ✅ Campo created_at (CORRIGIDO)
+ * ✅ AdSets
+ * ✅ Ads
+ * ✅ Fix erro ASC: (#100) Invalid campaign param(daily_budget)
  * 
- * @version 3.0
- * @date 2025-10-14
+ * @version 3.1
+ * @date 2025-10-15
  */
 
 session_start();
@@ -183,7 +183,7 @@ try {
     }
     
     // ==========================================
-    // ATUALIZAR ORÇAMENTO
+    // 🔥 ATUALIZAR ORÇAMENTO - FIX ASC/CBO
     // ==========================================
     elseif ($action === 'update_budget') {
         $campaignId = intval($requestData['campaign_id'] ?? 0);
@@ -209,46 +209,84 @@ try {
             throw new Exception('Campanha não encontrada');
         }
         
-        // Atualiza no banco local PRIMEIRO
-        $db->update('campaigns',
-            ['budget' => $newBudget],
-            'id = :id',
-            ['id' => $campaignId]
-        );
+        // 🆕 DETECTA SE É CAMPANHA ASC/CBO
+        $isASC = false;
+        $campaignName = strtolower($campaign['campaign_name']);
         
-        // Tenta atualizar no Meta
-        $metaUpdated = false;
-        $metaError = '';
-        
-        if ($metaCampaignId && $campaign['access_token']) {
-            try {
-                // Converte para centavos
-                $budgetInCents = intval($newBudget * 100);
-                
-                $result = updateMetaBudget(
-                    $metaCampaignId, 
-                    $budgetInCents, 
-                    $campaign['access_token']
-                );
-                
-                $metaUpdated = $result['success'];
-                $metaError = $result['error'] ?? '';
-                
-            } catch (Exception $e) {
-                $metaError = $e->getMessage();
-                error_log("Erro ao atualizar orçamento no Meta: " . $metaError);
-            }
-        } else {
-            $metaError = 'Token ou ID do Meta ausente';
+        // Verifica pelo nome
+        if (strpos($campaignName, 'advantage') !== false || 
+            strpos($campaignName, 'asc') !== false ||
+            strpos($campaignName, 'shopping') !== false ||
+            strpos($campaignName, 'compras advantage') !== false) {
+            $isASC = true;
         }
         
-        $response = [
-            'success' => true,
-            'message' => $metaUpdated 
-                ? '✅ Orçamento atualizado no Meta Ads!' 
-                : '✅ Orçamento atualizado localmente' . ($metaError ? " (Erro Meta: {$metaError})" : ''),
-            'meta_updated' => $metaUpdated
-        ];
+        // Verifica pelo objetivo
+        if (!empty($campaign['objective']) && 
+            $campaign['objective'] === 'OUTCOME_SALES') {
+            $isASC = true;
+        }
+        
+        // 🆕 SE FOR ASC, NÃO PERMITE EDIÇÃO
+        if ($isASC) {
+            // Atualiza APENAS localmente
+            $db->update('campaigns',
+                ['budget' => $newBudget],
+                'id = :id',
+                ['id' => $campaignId]
+            );
+            
+            $response = [
+                'success' => true,
+                'message' => '⚠️ Campanha ASC detectada! Orçamento atualizado apenas localmente. ' .
+                             'Campanhas ASC (Advantage Shopping Campaign) têm orçamento gerenciado ' .
+                             'automaticamente pelo Meta Ads e não podem ser alteradas via API.',
+                'meta_updated' => false,
+                'is_asc' => true
+            ];
+        } else {
+            // Atualiza no banco local PRIMEIRO
+            $db->update('campaigns',
+                ['budget' => $newBudget],
+                'id = :id',
+                ['id' => $campaignId]
+            );
+            
+            // Tenta atualizar no Meta (campanhas normais)
+            $metaUpdated = false;
+            $metaError = '';
+            
+            if ($metaCampaignId && $campaign['access_token']) {
+                try {
+                    // Converte para centavos
+                    $budgetInCents = intval($newBudget * 100);
+                    
+                    $result = updateMetaBudget(
+                        $metaCampaignId, 
+                        $budgetInCents, 
+                        $campaign['access_token']
+                    );
+                    
+                    $metaUpdated = $result['success'];
+                    $metaError = $result['error'] ?? '';
+                    
+                } catch (Exception $e) {
+                    $metaError = $e->getMessage();
+                    error_log("Erro ao atualizar orçamento no Meta: " . $metaError);
+                }
+            } else {
+                $metaError = 'Token ou ID do Meta ausente';
+            }
+            
+            $response = [
+                'success' => true,
+                'message' => $metaUpdated 
+                    ? '✅ Orçamento atualizado no Meta Ads!' 
+                    : '✅ Orçamento atualizado localmente' . ($metaError ? " (Erro Meta: {$metaError})" : ''),
+                'meta_updated' => $metaUpdated,
+                'is_asc' => false
+            ];
+        }
     }
     
     // ==========================================

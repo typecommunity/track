@@ -1,7 +1,7 @@
 /**
  * UTMTrack - Estilos do Dashboard de Campanhas
  * Arquivo: assets/css/campaigns-dashboard.css
- * Versão: 10.0 FINAL - Toggle Verde Minimalista
+ * Versão: 15.0 FINAL - Toggle Verde + Checkboxes Funcionais
  */
 
 /* ========================================
@@ -317,6 +317,215 @@ body {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+}
+
+/* ========================================
+   🆕 CHECKBOXES CUSTOMIZADOS
+======================================== */
+
+/* Célula de checkbox */
+.checkbox-cell {
+    width: 60px !important;
+    min-width: 60px !important;
+    max-width: 60px !important;
+    text-align: center !important;
+    padding: 8px !important;
+}
+
+/* Container do checkbox customizado */
+.custom-checkbox {
+    position: relative;
+    display: inline-block;
+    width: 20px;
+    height: 20px;
+    cursor: pointer;
+}
+
+/* Input escondido */
+.custom-checkbox input {
+    position: absolute;
+    opacity: 0;
+    cursor: pointer;
+    height: 0;
+    width: 0;
+}
+
+/* Checkmark (quadrado) */
+.custom-checkbox .checkmark {
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 20px;
+    width: 20px;
+    background-color: transparent;
+    border: 2px solid var(--border);
+    border-radius: 4px;
+    transition: all 0.2s;
+}
+
+/* Hover */
+.custom-checkbox:hover .checkmark {
+    border-color: var(--accent);
+    background-color: rgba(102, 126, 234, 0.1);
+}
+
+/* Quando checked */
+.custom-checkbox input:checked ~ .checkmark {
+    background-color: var(--accent);
+    border-color: var(--accent);
+}
+
+/* Checkmark icon (✓) */
+.custom-checkbox .checkmark:after {
+    content: "";
+    position: absolute;
+    display: none;
+}
+
+/* Mostra o checkmark quando checked */
+.custom-checkbox input:checked ~ .checkmark:after {
+    display: block;
+}
+
+/* Estilo do checkmark (✓) */
+.custom-checkbox .checkmark:after {
+    left: 6px;
+    top: 2px;
+    width: 5px;
+    height: 10px;
+    border: solid white;
+    border-width: 0 2px 2px 0;
+    transform: rotate(45deg);
+}
+
+/* Checkbox no header */
+.header-checkbox .custom-checkbox {
+    width: 22px;
+    height: 22px;
+}
+
+.header-checkbox .checkmark {
+    width: 22px;
+    height: 22px;
+}
+
+.header-checkbox .checkmark:after {
+    left: 7px;
+    top: 3px;
+}
+
+/* Row selected state */
+.campaigns-table tbody tr.selected {
+    background: rgba(102, 126, 234, 0.15) !important;
+}
+
+.campaigns-table tbody tr.selected:hover {
+    background: rgba(102, 126, 234, 0.25) !important;
+}
+
+/* ========================================
+   🆕 BULK ACTIONS BAR
+======================================== */
+.bulk-actions-bar {
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%) translateY(100px);
+    background: linear-gradient(135deg, var(--bg-secondary) 0%, var(--bg-primary) 100%);
+    border: 2px solid var(--accent);
+    border-radius: 16px;
+    padding: 16px 24px;
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+    z-index: 1000;
+    opacity: 0;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    pointer-events: none;
+}
+
+.bulk-actions-bar.active {
+    transform: translateX(-50%) translateY(0);
+    opacity: 1;
+    pointer-events: all;
+}
+
+.bulk-actions-info {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--text-primary);
+    font-weight: 600;
+}
+
+.bulk-actions-info .count {
+    background: var(--accent);
+    color: white;
+    padding: 4px 12px;
+    border-radius: 12px;
+    font-size: 13px;
+    min-width: 32px;
+    text-align: center;
+}
+
+.bulk-actions-buttons {
+    display: flex;
+    gap: 8px;
+}
+
+.bulk-btn {
+    padding: 8px 16px;
+    border-radius: 8px;
+    border: none;
+    font-weight: 600;
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.bulk-btn-activate {
+    background: var(--success);
+    color: white;
+}
+
+.bulk-btn-activate:hover {
+    background: #059669;
+    transform: translateY(-2px);
+}
+
+.bulk-btn-pause {
+    background: var(--warning);
+    color: white;
+}
+
+.bulk-btn-pause:hover {
+    background: #d97706;
+    transform: translateY(-2px);
+}
+
+.bulk-btn-delete {
+    background: var(--danger);
+    color: white;
+}
+
+.bulk-btn-delete:hover {
+    background: #dc2626;
+    transform: translateY(-2px);
+}
+
+.bulk-btn-cancel {
+    background: transparent;
+    color: var(--text-secondary);
+    border: 1px solid var(--border);
+}
+
+.bulk-btn-cancel:hover {
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
 }
 
 /* ========================================
@@ -665,11 +874,30 @@ body {
     font-weight: 500;
 }
 
-.selected-column-remove {
+.selected-column-remove, .remove-btn {
     color: var(--danger);
     cursor: pointer;
-    font-size: 16px;
-    padding: 4px;
+    font-size: 20px;
+    padding: 4px 8px;
+    background: transparent;
+    border: none;
+    transition: all 0.2s;
+}
+
+.selected-column-remove:hover, .remove-btn:hover {
+    background: rgba(239, 68, 68, 0.2);
+    border-radius: 4px;
+}
+
+.drag-handle {
+    color: var(--text-muted);
+    cursor: grab;
+    user-select: none;
+    font-weight: bold;
+}
+
+.drag-handle:active {
+    cursor: grabbing;
 }
 
 .columns-modal-footer {
@@ -928,6 +1156,22 @@ body {
     .btn {
         padding: 8px 16px;
         font-size: 13px;
+    }
+    
+    .bulk-actions-bar {
+        width: 95%;
+        flex-direction: column;
+        gap: 12px;
+    }
+    
+    .bulk-actions-buttons {
+        width: 100%;
+        flex-wrap: wrap;
+    }
+    
+    .bulk-btn {
+        flex: 1;
+        min-width: 120px;
     }
 }
 
