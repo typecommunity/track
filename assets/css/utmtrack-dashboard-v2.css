@@ -1,33 +1,49 @@
 /**
  * ========================================
- * UTMTRACK DASHBOARD V2.1 - CSS COMPLETO
+ * UTMTRACK DASHBOARD V3 - CSS CORRIGIDO
  * ========================================
- * Caminho: /assets/css/utmtrack-dashboard-v2.css
- * CORREÇÃO: Scrollbar + largura forçada
+ * Caminho: /assets/css/utmtrack-dashboard-v3.css
+ * CORREÇÕES: Headers organizados + espaçamento + scroll
  */
 
 /* ========================================
-   VARIÁVEIS CSS
+   VARIÁVEIS DO TEMA
    ======================================== */
 :root {
+    /* Dark Theme */
     --bg-primary: #0a0e1a;
     --bg-secondary: #141824;
     --bg-tertiary: #1a1f2e;
-    --border: #2a2f3e;
+    --bg-hover: #252a3a;
+    
+    /* Bordas */
+    --border-primary: #2a2f3e;
+    --border-secondary: #363c4f;
+    
+    /* Textos */
     --text-primary: #e4e6eb;
     --text-secondary: #8b92a4;
+    --text-muted: #6b7280;
+    
+    /* Cores de Ação */
     --accent: #3b82f6;
     --accent-hover: #2563eb;
+    --accent-dark: #1e40af;
+    
+    /* Status */
     --success: #10b981;
     --danger: #ef4444;
     --warning: #f59e0b;
+    --info: #06b6d4;
+    
+    /* Métricas */
     --positive: #10b981;
     --negative: #ef4444;
     --neutral: #6b7280;
 }
 
 /* ========================================
-   RESET & BASE
+   RESET GLOBAL
    ======================================== */
 * {
     margin: 0;
@@ -35,38 +51,50 @@
     box-sizing: border-box;
 }
 
+html {
+    font-size: 14px;
+    scroll-behavior: smooth;
+}
+
 body {
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
     background: var(--bg-primary);
     color: var(--text-primary);
-    line-height: 1.5;
+    line-height: 1.6;
     overflow-x: hidden;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
 }
 
 /* ========================================
-   TABS DE NAVEGAÇÃO
+   TABS DE NAVEGAÇÃO SUPERIOR
    ======================================== */
 .tabs-container {
     display: flex;
+    align-items: center;
     gap: 4px;
+    padding: 8px 20px;
     background: var(--bg-secondary);
-    padding: 8px 16px;
-    border-bottom: 1px solid var(--border);
+    border-bottom: 1px solid var(--border-primary);
+    position: sticky;
+    top: 0;
+    z-index: 100;
 }
 
 .tab-button {
-    display: flex;
+    display: inline-flex;
     align-items: center;
     gap: 8px;
-    padding: 10px 20px;
+    padding: 10px 18px;
     background: transparent;
     border: none;
+    border-radius: 8px;
     color: var(--text-secondary);
     font-size: 14px;
     font-weight: 500;
     cursor: pointer;
-    border-radius: 6px;
-    transition: all 0.2s;
+    transition: all 0.2s ease;
+    white-space: nowrap;
 }
 
 .tab-button:hover {
@@ -88,15 +116,17 @@ body {
 }
 
 /* ========================================
-   TOOLBAR
+   TOOLBAR PRINCIPAL
    ======================================== */
 .toolbar {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 16px 24px;
+    padding: 16px 20px;
     background: var(--bg-secondary);
-    border-bottom: 1px solid var(--border);
+    border-bottom: 1px solid var(--border-primary);
+    gap: 16px;
+    flex-wrap: wrap;
 }
 
 .toolbar-left,
@@ -104,17 +134,20 @@ body {
     display: flex;
     align-items: center;
     gap: 12px;
+    flex-wrap: wrap;
 }
 
 .status-indicator {
-    display: flex;
+    display: inline-flex;
     align-items: center;
     gap: 8px;
-    padding: 8px 16px;
-    background: var(--bg-tertiary);
+    padding: 8px 14px;
+    background: rgba(16, 185, 129, 0.1);
+    border: 1px solid rgba(16, 185, 129, 0.2);
     border-radius: 8px;
     font-size: 13px;
     font-weight: 500;
+    color: var(--success);
 }
 
 .status-dot {
@@ -122,45 +155,59 @@ body {
     height: 8px;
     background: var(--success);
     border-radius: 50%;
+    box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.2);
     animation: pulse 2s infinite;
 }
 
 @keyframes pulse {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.5; }
+    0%, 100% { 
+        opacity: 1;
+        transform: scale(1);
+    }
+    50% { 
+        opacity: 0.7;
+        transform: scale(1.1);
+    }
 }
 
 .stats-summary {
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: 16px;
     font-size: 13px;
     color: var(--text-secondary);
 }
 
-.stat-item {
-    white-space: nowrap;
+.stat-item strong {
+    color: var(--text-primary);
+    font-weight: 600;
 }
 
 .stat-separator {
-    color: var(--border);
+    color: var(--border-primary);
 }
 
 /* ========================================
-   BOTÕES
+   BOTÕES GLOBAIS
    ======================================== */
 .btn {
     display: inline-flex;
     align-items: center;
     gap: 8px;
-    padding: 10px 16px;
+    padding: 10px 18px;
     border: none;
     border-radius: 8px;
     font-size: 14px;
     font-weight: 500;
     cursor: pointer;
-    transition: all 0.2s;
+    transition: all 0.2s ease;
     white-space: nowrap;
+    outline: none;
+}
+
+.btn:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
 }
 
 .btn .icon {
@@ -179,15 +226,18 @@ body {
 .btn-primary:hover {
     background: var(--accent-hover);
     transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
 }
 
 .btn-secondary {
     background: var(--bg-tertiary);
     color: var(--text-primary);
+    border: 1px solid var(--border-primary);
 }
 
 .btn-secondary:hover {
-    background: var(--bg-primary);
+    background: var(--bg-hover);
+    border-color: var(--border-secondary);
 }
 
 .btn-danger {
@@ -197,13 +247,11 @@ body {
 
 .btn-danger:hover {
     background: #dc2626;
+    box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
 }
 
-.sync-icon {
-    animation: none;
-}
-
-.btn-primary:hover .sync-icon {
+/* Animação do botão sincronizar */
+.sync-icon.spinning {
     animation: rotate 1s linear infinite;
 }
 
@@ -216,15 +264,16 @@ body {
    BARRA DE PERÍODO
    ======================================== */
 .period-bar {
+    padding: 16px 20px;
     background: var(--bg-secondary);
-    border-bottom: 1px solid var(--border);
-    padding: 16px 24px;
+    border-bottom: 1px solid var(--border-primary);
 }
 
 .period-container {
     display: flex;
     align-items: center;
-    gap: 16px;
+    gap: 20px;
+    flex-wrap: wrap;
 }
 
 .period-label {
@@ -241,34 +290,29 @@ body {
 .period-label .icon {
     width: 16px;
     height: 16px;
-    stroke: currentColor;
-    fill: none;
-    stroke-width: 2;
 }
 
 .period-tabs {
     display: flex;
     gap: 8px;
     flex-wrap: wrap;
+    flex: 1;
 }
 
 .period-tab {
-    padding: 8px 16px;
+    padding: 8px 14px;
     background: var(--bg-tertiary);
-    border: 1px solid var(--border);
+    border: 1px solid var(--border-primary);
     border-radius: 6px;
+    color: var(--text-secondary);
     font-size: 13px;
     font-weight: 500;
-    color: var(--text-secondary);
     cursor: pointer;
-    transition: all 0.2s;
-    display: flex;
-    align-items: center;
-    gap: 4px;
+    transition: all 0.2s ease;
 }
 
 .period-tab:hover {
-    background: var(--bg-primary);
+    background: var(--bg-hover);
     color: var(--text-primary);
     border-color: var(--accent);
 }
@@ -279,86 +323,105 @@ body {
     border-color: var(--accent);
 }
 
+.period-tab .icon {
+    width: 14px;
+    height: 14px;
+}
+
 .custom-date-range {
-    display: flex;
+    display: none;
     align-items: center;
     gap: 12px;
     margin-top: 12px;
     padding-top: 12px;
-    border-top: 1px solid var(--border);
+    border-top: 1px solid var(--border-primary);
 }
 
 .custom-date-range input[type="date"] {
     padding: 8px 12px;
     background: var(--bg-tertiary);
-    border: 1px solid var(--border);
+    border: 1px solid var(--border-primary);
     border-radius: 6px;
     color: var(--text-primary);
     font-size: 13px;
 }
 
-.custom-date-range span {
-    color: var(--text-secondary);
-    font-size: 13px;
+.custom-date-range input[type="date"]:focus {
+    outline: none;
+    border-color: var(--accent);
 }
 
 /* ========================================
-   FILTROS
+   BARRA DE FILTROS
    ======================================== */
 .filters-bar {
     display: flex;
+    align-items: center;
     gap: 12px;
-    padding: 16px 24px;
+    padding: 16px 20px;
     background: var(--bg-secondary);
-    border-bottom: 1px solid var(--border);
-}
-
-.filter-input,
-.filter-select {
-    padding: 10px 16px;
-    background: var(--bg-tertiary);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    color: var(--text-primary);
-    font-size: 14px;
-    transition: all 0.2s;
+    border-bottom: 1px solid var(--border-primary);
+    flex-wrap: wrap;
 }
 
 .filter-input {
     flex: 1;
+    min-width: 200px;
     max-width: 400px;
+    padding: 10px 14px;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-primary);
+    border-radius: 8px;
+    color: var(--text-primary);
+    font-size: 14px;
+    transition: all 0.2s ease;
 }
 
-.filter-input:focus,
-.filter-select:focus {
+.filter-input::placeholder {
+    color: var(--text-muted);
+}
+
+.filter-input:focus {
     outline: none;
     border-color: var(--accent);
-    background: var(--bg-primary);
+    background: var(--bg-hover);
 }
 
 .filter-select {
-    min-width: 180px;
+    min-width: 150px;
+    padding: 10px 14px;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-primary);
+    border-radius: 8px;
+    color: var(--text-primary);
+    font-size: 14px;
     cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.filter-select:focus {
+    outline: none;
+    border-color: var(--accent);
 }
 
 /* ========================================
    BARRA DE AÇÕES EM MASSA
    ======================================== */
 .bulk-actions-bar {
-    display: flex;
+    display: none;
     justify-content: space-between;
     align-items: center;
-    padding: 12px 24px;
-    background: var(--accent);
+    padding: 12px 20px;
+    background: linear-gradient(90deg, var(--accent), var(--accent-hover));
     color: white;
     font-weight: 500;
-    animation: slideDown 0.3s;
+    animation: slideDown 0.3s ease;
 }
 
 @keyframes slideDown {
     from {
         opacity: 0;
-        transform: translateY(-10px);
+        transform: translateY(-100%);
     }
     to {
         opacity: 1;
@@ -373,65 +436,132 @@ body {
     gap: 12px;
 }
 
+#selectedCount {
+    font-weight: 600;
+    font-size: 16px;
+}
+
 /* ========================================
-   TABELA - COM SCROLL HORIZONTAL FORÇADO
+   CONTAINER DA TABELA - MÍNIMO 1000px
    ======================================== */
 .table-wrapper {
-    padding: 24px;
-    background: var(--bg-primary);
-    /* Força que o wrapper não ultrapasse a viewport */
-    max-width: 100vw;
-    overflow: hidden;
+    margin: 20px;
+    min-width: 1000px; /* Mínimo de 1000px considerando sidebar */
+    width: calc(100% - 40px); /* Ocupa toda largura disponível menos margens */
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-primary);
+    border-radius: 12px;
+    position: relative;
+    height: calc(100vh - 400px); /* Altura dinâmica baseada na viewport */
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
 }
 
 .table-container {
-    background: var(--bg-secondary);
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    /* CRÍTICO: Força scroll horizontal */
-    overflow-x: auto !important;
-    overflow-y: visible;
-    position: relative;
-    /* Padding bottom para dar espaço à scrollbar */
-    padding-bottom: 20px;
-    /* Largura máxima */
+    flex: 1;
     width: 100%;
+    min-width: 1000px; /* Mínimo de 1000px considerando sidebar */
+    overflow: auto; /* Permite scroll em ambas direções quando necessário */
+    position: relative;
+    scroll-behavior: smooth;
+    border-radius: 0 0 12px 12px;
+}
+
+/* Para telas menores que 1000px + sidebar (aprox 1250px total), força scroll horizontal */
+@media (max-width: 1250px) {
+    body {
+        overflow-x: auto;
+        min-width: 1000px;
+    }
+    
+    .table-wrapper {
+        width: 1000px; /* Fixa em 1000px quando a tela é menor */
+    }
+}
+
+/* Considerando layouts com sidebar */
+.with-sidebar .table-wrapper {
+    margin-left: 0; /* Remove margem esquerda quando tem sidebar */
+}
+
+/* Para dashboards fullwidth sem sidebar */
+.fullwidth .table-wrapper {
+    min-width: 1200px; /* Pode usar mais espaço */
+}
+
+/* Header fixo da tabela */
+.table-header-fixed {
+    position: sticky;
+    top: 0;
+    z-index: 25;
+    background: var(--bg-tertiary);
 }
 
 /* ========================================
-   ESTILIZAÇÃO DA BARRA DE ROLAGEM HORIZONTAL
+   SCROLLBAR PERSONALIZADA - AMBAS DIREÇÕES
    ======================================== */
-
-/* Chrome, Safari, Edge, Opera */
-.table-container::-webkit-scrollbar {
+/* Horizontal */
+.table-container::-webkit-scrollbar:horizontal {
     height: 16px;
+}
+
+/* Vertical */
+.table-container::-webkit-scrollbar:vertical {
+    width: 16px;
+}
+
+.table-container::-webkit-scrollbar {
     background: var(--bg-primary);
-    border-radius: 0 0 12px 12px;
 }
 
 .table-container::-webkit-scrollbar-track {
     background: var(--bg-tertiary);
-    border-radius: 0 0 12px 12px;
-    margin: 0 12px;
-    box-shadow: inset 0 0 6px rgba(0,0,0,0.3);
+    box-shadow: inset 0 0 6px rgba(0, 0, 0, 0.3);
+}
+
+.table-container::-webkit-scrollbar-thumb {
+    background: linear-gradient(135deg, var(--accent), var(--accent-hover));
+    border-radius: 8px;
+    border: 2px solid var(--bg-tertiary);
+    box-shadow: 0 0 6px rgba(59, 130, 246, 0.3);
+}
+
+.table-container::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(135deg, var(--accent-hover), var(--accent-dark));
+    cursor: pointer;
+}
+
+.table-container::-webkit-scrollbar-corner {
+    background: var(--bg-tertiary);
+}
+
+/* ========================================
+   SCROLLBAR PERSONALIZADA - SEMPRE VISÍVEL
+   ======================================== */
+.table-container::-webkit-scrollbar {
+    height: 16px; /* Aumentado para melhor visibilidade */
+    background: var(--bg-primary);
+    border-radius: 0 0 11px 11px;
+}
+
+.table-container::-webkit-scrollbar-track {
+    background: var(--bg-tertiary);
+    border-radius: 0 0 11px 11px;
+    margin: 0 10px; /* Margem nas laterais */
+    box-shadow: inset 0 0 6px rgba(0, 0, 0, 0.3);
 }
 
 .table-container::-webkit-scrollbar-thumb {
     background: linear-gradient(90deg, var(--accent), var(--accent-hover));
     border-radius: 10px;
-    border: 3px solid var(--bg-tertiary);
-    transition: all 0.3s ease;
+    border: 2px solid var(--bg-tertiary);
+    box-shadow: 0 0 6px rgba(59, 130, 246, 0.3);
 }
 
 .table-container::-webkit-scrollbar-thumb:hover {
-    background: linear-gradient(90deg, var(--accent-hover), #1d4ed8);
-    border: 2px solid var(--bg-tertiary);
-    box-shadow: 0 0 10px rgba(59, 130, 246, 0.5);
+    background: linear-gradient(90deg, var(--accent-hover), var(--accent-dark));
     cursor: pointer;
-}
-
-.table-container::-webkit-scrollbar-thumb:active {
-    background: var(--accent-hover);
 }
 
 /* Firefox */
@@ -440,67 +570,218 @@ body {
     scrollbar-color: var(--accent) var(--bg-tertiary);
 }
 
-/* CRÍTICO: Tabela com largura FIXA maior que viewport */
+/* ========================================
+   TABELA PRINCIPAL - LARGURA ADAPTATIVA
+   ======================================== */
 .campaigns-table {
-    width: 100%;
-    /* FORÇA scroll horizontal - ajuste conforme suas colunas */
-    min-width: 2400px !important;
-    border-collapse: collapse;
-    table-layout: fixed;
+    width: 100%; /* Usa toda largura disponível */
+    min-width: max-content; /* Garante que colunas não sejam comprimidas */
+    border-collapse: separate;
+    border-spacing: 0;
+    table-layout: auto;
 }
 
+/* Em telas muito grandes, a tabela expande naturalmente */
+@media (min-width: 1921px) {
+    .campaigns-table {
+        width: 100%;
+    }
+}
+
+/* Em telas médias, mantém proporções */
+@media (min-width: 1321px) and (max-width: 1920px) {
+    .campaigns-table {
+        width: 100%;
+    }
+}
+
+/* ========================================
+   HEADER DA TABELA - STICKY COM FILTROS
+   ======================================== */
 .campaigns-table thead {
     background: var(--bg-tertiary);
     position: sticky;
+    top: 0; /* Fica no topo do container de scroll */
+    z-index: 20;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+/* Quando dentro do container com scroll */
+.table-container {
+    overflow-y: auto; /* Permite scroll vertical */
+    max-height: calc(100vh - 350px); /* Ajusta altura considerando elementos superiores */
+}
+
+/* Wrapper para scroll combinado */
+.table-scroll-wrapper {
+    position: relative;
+    overflow: hidden;
+}
+
+.campaigns-table thead tr {
+    background: var(--bg-tertiary);
+}
+
+/* Garantir que o header fique acima do conteúdo */
+.campaigns-table thead th {
+    position: sticky;
     top: 0;
-    z-index: 10;
+    background: var(--bg-tertiary);
+    z-index: 21;
 }
 
 .campaigns-table th {
-    padding: 14px 16px;
+    padding: 14px 20px; /* Aumentado o padding horizontal */
     text-align: left;
     font-size: 12px;
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.5px;
     color: var(--text-secondary);
-    border-bottom: 2px solid var(--border);
+    border-bottom: 2px solid var(--border-primary);
+    border-right: 1px solid var(--border-primary);
     white-space: nowrap;
     position: relative;
     user-select: none;
+    min-width: auto; /* Permite que a coluna se ajuste ao conteúdo */
 }
 
+.campaigns-table th:last-child {
+    border-right: none;
+}
+
+/* Larguras específicas ajustadas para evitar sobreposição */
+.campaigns-table th[data-column="checkbox"] { 
+    width: 60px;
+    min-width: 60px;
+    max-width: 60px;
+    padding: 14px 10px;
+    text-align: center;
+}
+
+.campaigns-table th[data-column="nome"] { 
+    min-width: 300px;
+    width: 300px;
+}
+
+.campaigns-table th[data-column="status"] { 
+    min-width: 120px;
+    width: 120px;
+}
+
+.campaigns-table th[data-column="orcamento"] { 
+    min-width: 140px;
+    width: 140px;
+}
+
+.campaigns-table th[data-column="gastos"] { 
+    min-width: 140px;
+    width: 140px;
+}
+
+.campaigns-table th[data-column="impressoes"] { 
+    min-width: 140px;
+    width: 140px;
+}
+
+.campaigns-table th[data-column="cliques"] { 
+    min-width: 120px;
+    width: 120px;
+}
+
+.campaigns-table th[data-column="ctr"] { 
+    min-width: 100px;
+    width: 100px;
+}
+
+.campaigns-table th[data-column="cpc"] { 
+    min-width: 120px;
+    width: 120px;
+}
+
+.campaigns-table th[data-column="cpm"] { 
+    min-width: 120px;
+    width: 120px;
+}
+
+.campaigns-table th[data-column="vendas"] { 
+    min-width: 120px;
+    width: 120px;
+}
+
+.campaigns-table th[data-column="faturamento"] { 
+    min-width: 150px;
+    width: 150px;
+}
+
+.campaigns-table th[data-column="lucro"] { 
+    min-width: 140px;
+    width: 140px;
+}
+
+.campaigns-table th[data-column="roas"] { 
+    min-width: 100px;
+    width: 100px;
+}
+
+.campaigns-table th[data-column="roi"] { 
+    min-width: 100px;
+    width: 100px;
+}
+
+.campaigns-table th[data-column="margem"] { 
+    min-width: 120px;
+    width: 120px;
+}
+
+.campaigns-table th[data-column="cpa"] { 
+    min-width: 120px;
+    width: 120px;
+}
+
+/* Conteúdo do header */
 .th-content {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 10px;
+    width: 100%;
 }
 
 .drag-handle {
-    cursor: grab;
-    color: var(--text-secondary);
+    cursor: move;
+    color: var(--text-muted);
+    font-size: 14px;
     opacity: 0;
-    transition: opacity 0.2s;
+    transition: opacity 0.2s ease;
 }
 
 .campaigns-table th:hover .drag-handle {
-    opacity: 1;
+    opacity: 0.7;
 }
 
 .th-label {
     flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .sort-icon {
+    margin-left: auto;
     opacity: 0.5;
-    transition: opacity 0.2s;
+    font-size: 14px;
     cursor: pointer;
+    transition: opacity 0.2s ease;
 }
 
-.campaigns-table th:hover .sort-icon {
+.campaigns-table th.sortable:hover {
+    background: var(--bg-hover);
+}
+
+.campaigns-table th.sortable:hover .sort-icon {
     opacity: 1;
 }
 
+/* Handle de redimensionamento */
 .resize-handle {
     position: absolute;
     right: 0;
@@ -509,21 +790,24 @@ body {
     width: 4px;
     cursor: col-resize;
     background: transparent;
-    transition: background 0.2s;
     z-index: 1;
 }
 
-.resize-handle:hover {
+.resize-handle:hover,
+.resize-handle:active {
     background: var(--accent);
 }
 
+/* ========================================
+   CORPO DA TABELA
+   ======================================== */
 .campaigns-table tbody tr {
-    border-bottom: 1px solid var(--border);
-    transition: background 0.2s;
+    border-bottom: 1px solid var(--border-primary);
+    transition: background 0.2s ease;
 }
 
 .campaigns-table tbody tr:hover {
-    background: var(--bg-tertiary);
+    background: var(--bg-hover);
 }
 
 .campaigns-table tbody tr.selected {
@@ -531,20 +815,30 @@ body {
 }
 
 .campaigns-table td {
-    padding: 14px 16px;
+    padding: 14px 20px; /* Mesmo padding do header */
     font-size: 14px;
+    color: var(--text-primary);
+    border-right: 1px solid var(--border-primary);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
 }
 
+.campaigns-table td:last-child {
+    border-right: none;
+}
+
 /* ========================================
    CHECKBOX CUSTOMIZADO
    ======================================== */
+.checkbox-cell {
+    text-align: center !important;
+    padding: 14px 10px !important;
+}
+
 .custom-checkbox {
     position: relative;
-    display: inline-flex;
-    cursor: pointer;
+    display: inline-block;
     width: 20px;
     height: 20px;
 }
@@ -556,19 +850,19 @@ body {
     width: 100%;
     height: 100%;
     margin: 0;
+    z-index: 1;
 }
 
 .checkmark {
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    position: absolute;
+    top: 0;
+    left: 0;
     width: 20px;
     height: 20px;
     background: var(--bg-tertiary);
-    border: 2px solid var(--border);
+    border: 2px solid var(--border-secondary);
     border-radius: 4px;
-    transition: all 0.2s;
-    pointer-events: none;
+    transition: all 0.2s ease;
 }
 
 .custom-checkbox:hover .checkmark {
@@ -581,34 +875,20 @@ body {
 }
 
 .custom-checkbox input:checked ~ .checkmark::after {
-    content: '✓';
-    color: white;
-    font-size: 14px;
-    font-weight: bold;
-    line-height: 1;
-}
-
-/* Estado indeterminate (setado via JS) */
-.custom-checkbox input:indeterminate ~ .checkmark {
-    background: var(--accent);
-    border-color: var(--accent);
-}
-
-.custom-checkbox input:indeterminate ~ .checkmark::after {
-    content: '−';
-    color: white;
-    font-size: 16px;
-    font-weight: bold;
-    line-height: 1;
-}
-
-.checkbox-cell {
-    width: 60px;
-    text-align: center;
+    content: '';
+    position: absolute;
+    display: block;
+    left: 6px;
+    top: 2px;
+    width: 5px;
+    height: 10px;
+    border: solid white;
+    border-width: 0 2px 2px 0;
+    transform: rotate(45deg);
 }
 
 /* ========================================
-   TOGGLE SWITCH
+   TOGGLE SWITCH (STATUS)
    ======================================== */
 .toggle-switch {
     position: relative;
@@ -631,9 +911,9 @@ body {
     right: 0;
     bottom: 0;
     background: var(--bg-tertiary);
-    border: 2px solid var(--border);
-    transition: 0.3s;
+    border: 2px solid var(--border-secondary);
     border-radius: 24px;
+    transition: all 0.3s ease;
 }
 
 .toggle-slider:before {
@@ -644,8 +924,8 @@ body {
     left: 2px;
     bottom: 2px;
     background: var(--text-secondary);
-    transition: 0.3s;
     border-radius: 50%;
+    transition: all 0.3s ease;
 }
 
 .toggle-switch input:checked + .toggle-slider {
@@ -658,35 +938,25 @@ body {
     background: white;
 }
 
-.toggle-switch input:disabled + .toggle-slider {
-    opacity: 0.5;
-    cursor: not-allowed;
-}
-
 /* ========================================
    CÉLULAS ESPECIAIS
    ======================================== */
 .campaign-name-cell {
     font-weight: 600;
+    color: var(--text-primary);
     cursor: pointer;
-    transition: color 0.2s;
     max-width: 280px;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .campaign-name-cell:hover {
     color: var(--accent);
 }
 
-.campaign-name-cell:hover::after {
-    content: '✏️';
-    margin-left: 8px;
-    font-size: 12px;
-    opacity: 0.6;
-}
-
 .campaign-id {
     font-size: 11px;
-    color: var(--text-secondary);
+    color: var(--text-muted);
     margin-top: 2px;
 }
 
@@ -694,25 +964,15 @@ body {
     cursor: pointer;
     padding: 4px 8px;
     border-radius: 4px;
-    transition: all 0.2s;
-    position: relative;
+    transition: all 0.2s ease;
 }
 
 .editable-field:hover {
-    background: var(--bg-tertiary);
+    background: var(--bg-hover);
     color: var(--accent);
 }
 
-.editable-field:hover::after {
-    content: '✏️';
-    position: absolute;
-    right: 4px;
-    top: 50%;
-    transform: translateY(-50%);
-    font-size: 12px;
-    opacity: 0.6;
-}
-
+/* Métricas coloridas */
 .metric-positive {
     color: var(--positive);
     font-weight: 600;
@@ -738,6 +998,7 @@ body {
 .empty-icon {
     font-size: 64px;
     margin-bottom: 20px;
+    opacity: 0.8;
 }
 
 .empty-title {
@@ -762,31 +1023,31 @@ body {
     left: 0;
     right: 0;
     bottom: 0;
-    background: rgba(0, 0, 0, 0.7);
+    background: rgba(0, 0, 0, 0.8);
+    backdrop-filter: blur(4px);
     display: flex;
     align-items: center;
     justify-content: center;
     z-index: 1000;
-    animation: fadeInModal 0.2s;
-    backdrop-filter: blur(4px);
+    animation: fadeIn 0.2s ease;
 }
 
-@keyframes fadeInModal {
+@keyframes fadeIn {
     from { opacity: 0; }
     to { opacity: 1; }
 }
 
 .modal-content {
     background: var(--bg-secondary);
-    border: 1px solid var(--border);
+    border: 1px solid var(--border-primary);
     border-radius: 16px;
     width: 90%;
-    max-width: 800px;
+    max-width: 600px;
     max-height: 80vh;
     display: flex;
     flex-direction: column;
-    animation: slideUp 0.3s;
     box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+    animation: slideUp 0.3s ease;
 }
 
 @keyframes slideUp {
@@ -802,7 +1063,7 @@ body {
 
 .modal-header {
     padding: 24px;
-    border-bottom: 1px solid var(--border);
+    border-bottom: 1px solid var(--border-primary);
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -811,6 +1072,7 @@ body {
 .modal-header h3 {
     font-size: 20px;
     font-weight: 600;
+    color: var(--text-primary);
 }
 
 .modal-close {
@@ -819,15 +1081,13 @@ body {
     font-size: 28px;
     color: var(--text-secondary);
     cursor: pointer;
-    line-height: 1;
-    padding: 0;
     width: 32px;
     height: 32px;
     display: flex;
     align-items: center;
     justify-content: center;
     border-radius: 6px;
-    transition: all 0.2s;
+    transition: all 0.2s ease;
 }
 
 .modal-close:hover {
@@ -843,172 +1103,79 @@ body {
 
 .modal-footer {
     padding: 16px 24px;
-    border-top: 1px solid var(--border);
+    border-top: 1px solid var(--border-primary);
     display: flex;
     gap: 12px;
     justify-content: flex-end;
 }
 
 /* ========================================
-   LOADING OVERLAY
-   ======================================== */
-.loading-overlay {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: rgba(0, 0, 0, 0.8);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-direction: column;
-    gap: 20px;
-    z-index: 2000;
-    backdrop-filter: blur(8px);
-}
-
-.spinner {
-    width: 48px;
-    height: 48px;
-    border: 4px solid var(--border);
-    border-top-color: var(--accent);
-    border-radius: 50%;
-    animation: spin 1s linear infinite;
-}
-
-@keyframes spin {
-    to { transform: rotate(360deg); }
-}
-
-/* ========================================
-   TOAST NOTIFICATIONS
-   ======================================== */
-.toast {
-    position: fixed;
-    bottom: 24px;
-    right: 24px;
-    background: var(--bg-secondary);
-    border: 1px solid var(--border);
-    padding: 16px 24px;
-    border-radius: 12px;
-    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
-    z-index: 3000;
-    min-width: 300px;
-    max-width: 500px;
-    animation: slideInRight 0.3s;
-}
-
-@keyframes slideInRight {
-    from {
-        opacity: 0;
-        transform: translateX(100%);
-    }
-    to {
-        opacity: 1;
-        transform: translateX(0);
-    }
-}
-
-.toast.toast-success {
-    border-left: 4px solid var(--success);
-}
-
-.toast.toast-error {
-    border-left: 4px solid var(--danger);
-}
-
-.toast.toast-warning {
-    border-left: 4px solid var(--warning);
-}
-
-.toast.fade-out {
-    animation: fadeOut 0.3s;
-}
-
-@keyframes fadeOut {
-    to {
-        opacity: 0;
-        transform: translateY(20px);
-    }
-}
-
-/* ========================================
-   DRAG & DROP DE COLUNAS
-   ======================================== */
-th[draggable="true"] {
-    cursor: move;
-}
-
-th.dragging {
-    opacity: 0.5;
-    background: var(--accent);
-}
-
-th.drag-over-left {
-    border-left: 3px solid var(--accent);
-}
-
-th.drag-over-right {
-    border-right: 3px solid var(--accent);
-}
-
-.drag-handle {
-    cursor: grab;
-    padding: 4px;
-}
-
-.drag-handle:active {
-    cursor: grabbing;
-}
-
-/* ========================================
-   RESPONSIVO
+   RESPONSIVO - AJUSTADO PARA 1000px MÍNIMO
    ======================================== */
 @media (max-width: 1024px) {
+    /* Mantém 1000px mínimo mas ajusta layout */
     .toolbar {
-        flex-direction: column;
-        gap: 16px;
+        flex-direction: row; /* Mantém horizontal se possível */
+        min-width: 1000px;
+    }
+    
+    .toolbar-left,
+    .toolbar-right {
+        flex: 1;
     }
     
     .stats-summary {
         flex-wrap: wrap;
     }
     
-    .period-tabs {
-        justify-content: center;
-    }
-    
-    .filters-bar {
-        flex-wrap: wrap;
-    }
-    
-    .filter-input {
-        max-width: 100%;
+    /* Força scroll horizontal do body */
+    body {
+        min-width: 1000px;
+        overflow-x: auto;
     }
 }
 
 @media (max-width: 768px) {
+    /* Em mobile, ainda mantém 1000px mínimo */
+    body {
+        min-width: 1000px;
+        overflow-x: auto;
+    }
+    
+    .tabs-container {
+        min-width: 1000px;
+        overflow-x: visible; /* Permite scroll do body */
+        gap: 2px;
+        padding: 8px;
+    }
+    
+    .tab-button {
+        padding: 8px 12px;
+        font-size: 13px;
+    }
+    
+    .period-container {
+        flex-direction: row; /* Mantém horizontal para não quebrar layout */
+        min-width: 1000px;
+    }
+    
+    .period-tabs {
+        overflow-x: auto;
+    }
+    
+    .filters-bar {
+        min-width: 1000px;
+        flex-direction: row; /* Mantém horizontal */
+    }
+    
+    .filter-input {
+        max-width: 300px; /* Limita tamanho do input */
+    }
+    
     .table-wrapper {
-        padding: 16px;
-    }
-    
-    .table-container {
+        margin: 10px;
         border-radius: 8px;
-    }
-    
-    /* Scrollbar mais visível em mobile */
-    .table-container::-webkit-scrollbar {
-        height: 18px;
-    }
-    
-    .table-container::-webkit-scrollbar-thumb {
-        border: 2px solid var(--bg-tertiary);
-    }
-    
-    .campaigns-table {
-        /* Mantém largura grande em mobile para forçar scroll */
-        min-width: 2400px !important;
+        min-width: 1000px;
     }
     
     .campaigns-table th,
@@ -1016,29 +1183,44 @@ th.drag-over-right {
         padding: 10px 12px;
         font-size: 12px;
     }
-    
-    .period-container {
-        flex-direction: column;
-        align-items: flex-start;
-    }
-    
-    .period-tabs {
-        width: 100%;
-    }
-    
-    .custom-date-range {
-        flex-direction: column;
-        width: 100%;
-    }
-    
-    .custom-date-range input[type="date"] {
-        width: 100%;
-    }
-    
-    .toast {
-        left: 16px;
-        right: 16px;
-        bottom: 16px;
-        min-width: auto;
+}
+
+/* Breakpoint para considerar sidebar típica de ~250px */
+@media (min-width: 1250px) {
+    /* Com sidebar de 250px + content de 1000px = 1250px total */
+    .main-content {
+        margin-left: 250px; /* Espaço para sidebar */
     }
 }
+
+/* Telas grandes - aproveita todo espaço */
+@media (min-width: 1600px) {
+    .table-wrapper,
+    .table-container {
+        /* Em telas grandes, expande naturalmente */
+        width: calc(100% - 40px);
+    }
+}
+
+/* Telas ultra-wide e 4K */
+@media (min-width: 2560px) {
+    .tabs-container,
+    .toolbar,
+    .period-bar,
+    .filters-bar,
+    .bulk-actions-bar,
+    .table-wrapper {
+        /* Pode adicionar max-width se quiser limitar em telas muito grandes */
+        /* max-width: 2000px; */
+        /* margin: 0 auto; */
+    }
+}
+
+/* ========================================
+   UTILITÁRIOS
+   ======================================== */
+.text-center { text-align: center; }
+.text-right { text-align: right; }
+.font-bold { font-weight: 600; }
+.opacity-50 { opacity: 0.5; }
+.d-none { display: none !important; }

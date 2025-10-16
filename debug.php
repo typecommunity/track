@@ -1,378 +1,577 @@
 <?php
 /**
  * ========================================
- * SINCRONIZAÇÃO VIA CONTA (SEMPRE FUNCIONA)
+ * SUPER DEBUG: FLUXO COMPLETO DO DASHBOARD
  * ========================================
- * Busca insights agregados pela conta, não por campanha individual
+ * Mostra EXATAMENTE onde está o problema
+ * 
+ * LOCAL: /utmtrack/super-debug-dashboard.php
+ * ACESSE: https://ataweb.com.br/utmtrack/super-debug-dashboard.php
  */
 
+session_start();
 error_reporting(E_ALL);
 ini_set('display_errors', '1');
-set_time_limit(300);
-
-if (session_status() === PHP_SESSION_NONE) {
-    session_start();
-}
-
-if (!isset($_SESSION['user_id'])) {
-    die('❌ Faça login: <a href="../public/index.php?page=login">Login</a>');
-}
-
-$baseDir = '/home/ataweb.com.br/public_html/utmtrack';
-$userId = $_SESSION['user_id'];
 
 ?>
 <!DOCTYPE html>
-<html>
+<html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
-    <title>Sincronização via Conta</title>
+    <title>🔍 Super Debug - Dashboard UTMTrack</title>
     <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
         body { 
-            font-family: monospace; 
-            background: #0a0e1a; 
-            color: #e4e6eb; 
-            padding: 20px;
-            line-height: 1.8;
+            font-family: 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #1e3a8a 0%, #7c3aed 100%);
+            color: #fff;
+            padding: 30px;
+            line-height: 1.6;
         }
-        h1, h2 { color: #3b82f6; }
-        .success { color: #10b981; font-weight: bold; }
-        .error { color: #ef4444; font-weight: bold; }
-        .warning { color: #f59e0b; font-weight: bold; }
-        .info { color: #6b7280; }
-        pre { 
-            background: #141824; 
-            padding: 15px; 
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: rgba(0,0,0,0.4);
+            padding: 40px;
+            border-radius: 15px;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+        }
+        h1 {
+            font-size: 36px;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+        h2 {
+            font-size: 24px;
+            margin: 30px 0 15px;
+            color: #60a5fa;
+            border-bottom: 2px solid rgba(96, 165, 250, 0.3);
+            padding-bottom: 10px;
+        }
+        h3 {
+            font-size: 18px;
+            margin: 20px 0 10px;
+            color: #4ade80;
+        }
+        .step {
+            background: rgba(255,255,255,0.05);
+            padding: 25px;
+            margin: 20px 0;
+            border-radius: 10px;
+            border-left: 4px solid #4ade80;
+        }
+        .success { 
+            color: #4ade80; 
+            display: flex; 
+            align-items: center; 
+            gap: 10px;
+            margin: 10px 0;
+        }
+        .error { 
+            color: #f87171; 
+            display: flex; 
+            align-items: center; 
+            gap: 10px;
+            margin: 10px 0;
+        }
+        .warning { 
+            color: #fbbf24;
+            display: flex; 
+            align-items: center; 
+            gap: 10px;
+            margin: 10px 0;
+        }
+        pre {
+            background: rgba(0,0,0,0.6);
+            padding: 20px;
             border-radius: 8px;
             overflow-x: auto;
-            font-size: 11px;
+            font-size: 13px;
+            line-height: 1.8;
+            border: 1px solid rgba(255,255,255,0.1);
         }
-        .section { 
-            margin: 20px 0; 
-            padding: 20px; 
-            background: #141824; 
-            border-radius: 12px; 
-            border: 1px solid #2a2f3e; 
+        .code-block {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 20px;
+            border-radius: 8px;
+            overflow-x: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            margin: 15px 0;
         }
-        .campaign {
-            background: #1a1f2e;
+        .keyword { color: #569cd6; }
+        .string { color: #ce9178; }
+        .number { color: #b5cea8; }
+        .comment { color: #6a9955; }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+            background: rgba(0,0,0,0.3);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        th, td {
             padding: 12px;
-            margin: 8px 0;
-            border-radius: 6px;
-            border-left: 3px solid #10b981;
+            text-align: left;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
         }
+        th {
+            background: rgba(0,0,0,0.4);
+            font-weight: 600;
+        }
+        .btn {
+            display: inline-block;
+            padding: 12px 25px;
+            background: linear-gradient(135deg, #4ade80 0%, #22c55e 100%);
+            color: #000;
+            text-decoration: none;
+            border-radius: 8px;
+            font-weight: 600;
+            margin: 10px 5px;
+            transition: all 0.3s;
+        }
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(74, 222, 128, 0.4);
+        }
+        .icon { font-size: 20px; }
+        .highlight { 
+            background: rgba(250, 204, 21, 0.2);
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-weight: 600;
+        }
+        .badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            background: rgba(74, 222, 128, 0.2);
+            color: #4ade80;
+        }
+        .badge.error { background: rgba(248, 113, 113, 0.2); color: #f87171; }
+        .badge.warning { background: rgba(251, 191, 36, 0.2); color: #fbbf24; }
     </style>
 </head>
 <body>
+<div class="container">
 
-<h1>🔄 Sincronização via Conta</h1>
+<h1>🔍 Super Debug - Dashboard UTMTrack</h1>
+<p style="color: rgba(255,255,255,0.8); margin-bottom: 30px;">
+    Diagnóstico completo do fluxo de dados do dashboard
+</p>
 
 <?php
+// ========================================
+// 1. VERIFICAÇÕES INICIAIS
+// ========================================
+echo "<div class='step'>";
+echo "<h2>1️⃣ Verificações Iniciais</h2>";
 
-// ========================================
-// 1. SETUP
-// ========================================
-echo '<div class="section">';
-echo '<h2>1️⃣ Configurando</h2>';
+if (!isset($_SESSION['user_id'])) {
+    echo "<div class='error'><span class='icon'>❌</span><span>Usuário não autenticado</span></div>";
+    echo "<a href='/utmtrack/index.php?page=login' class='btn'>Fazer Login</a>";
+    echo "</div></div></body></html>";
+    exit;
+}
+
+$userId = $_SESSION['user_id'];
+echo "<div class='success'><span class='icon'>✅</span><span>Usuário autenticado: ID <span class='highlight'>{$userId}</span></span></div>";
 
 try {
-    require_once $baseDir . '/core/Database.php';
+    require_once __DIR__ . '/core/Database.php';
     $db = Database::getInstance();
-    echo '<p class="success">✅ Banco conectado</p>';
+    echo "<div class='success'><span class='icon'>✅</span><span>Conexão com banco estabelecida</span></div>";
 } catch (Exception $e) {
-    echo '<p class="error">❌ Erro: ' . htmlspecialchars($e->getMessage()) . '</p>';
-    die('</div></body></html>');
+    echo "<div class='error'><span class='icon'>❌</span><span>Erro ao conectar: " . $e->getMessage() . "</span></div>";
+    exit;
 }
 
-$account = $db->fetch("
-    SELECT * FROM ad_accounts
-    WHERE user_id = :user_id
-    AND platform = 'meta'
-    AND status = 'active'
-    AND access_token IS NOT NULL
-    ORDER BY id DESC
-    LIMIT 1
-", ['user_id' => $userId]);
+// Verifica se controller existe
+$controllerPath = __DIR__ . '/app/controllers/CampaignController.php';
+$controllerExists = file_exists($controllerPath);
+echo "<div class='" . ($controllerExists ? 'success' : 'error') . "'>";
+echo "<span class='icon'>" . ($controllerExists ? '✅' : '❌') . "</span>";
+echo "<span>CampaignController: " . ($controllerExists ? 'Encontrado' : 'NÃO encontrado') . "</span>";
+echo "</div>";
 
-if (!$account) {
-    echo '<p class="error">❌ Nenhuma conta ativa</p>';
-    die('</div></body></html>');
+// Verifica se view existe
+$viewPath = __DIR__ . '/app/views/campaigns/index.php';
+$viewExists = file_exists($viewPath);
+echo "<div class='" . ($viewExists ? 'success' : 'error') . "'>";
+echo "<span class='icon'>" . ($viewExists ? '✅' : '❌') . "</span>";
+echo "<span>View campaigns/index: " . ($viewExists ? 'Encontrada' : 'NÃO encontrada') . "</span>";
+echo "</div>";
+
+// Verifica JavaScript
+$jsPath = __DIR__ . '/assets/js/utmtrack-dashboard-v2.js';
+$jsExists = file_exists($jsPath);
+echo "<div class='" . ($jsExists ? 'success' : 'warning') . "'>";
+echo "<span class='icon'>" . ($jsExists ? '✅' : '⚠️') . "</span>";
+echo "<span>JavaScript dashboard: " . ($jsExists ? 'Encontrado' : 'NÃO encontrado') . "</span>";
+echo "</div>";
+
+echo "</div>";
+
+// ========================================
+// 2. TESTE DE QUERY DO CONTROLLER
+// ========================================
+echo "<div class='step'>";
+echo "<h2>2️⃣ Query Exata do Controller</h2>";
+
+echo "<p>Esta é a MESMA query que o CampaignController usa:</p>";
+
+$query = "
+    SELECT 
+        c.id,
+        c.user_id,
+        c.ad_account_id,
+        c.campaign_id,
+        c.campaign_name,
+        c.status,
+        c.effective_status,
+        c.objective,
+        c.buying_type,
+        c.daily_budget,
+        c.lifetime_budget,
+        c.campaign_budget_optimization,
+        c.is_asc,
+        aa.account_name,
+        ci.impressions,
+        ci.clicks,
+        ci.spend,
+        ci.reach,
+        ci.frequency,
+        ci.ctr,
+        ci.cpc,
+        ci.cpm,
+        ci.purchase,
+        ci.purchase_value,
+        ci.roas,
+        ci.roi,
+        ci.cpa
+    FROM campaigns c
+    LEFT JOIN ad_accounts aa ON aa.id = c.ad_account_id
+    LEFT JOIN campaign_insights ci ON ci.campaign_id = c.id
+    WHERE c.user_id = :user_id
+    ORDER BY c.created_at DESC
+";
+
+try {
+    $campaigns = $db->fetchAll($query, ['user_id' => $userId]);
+    
+    echo "<div class='success'>";
+    echo "<span class='icon'>✅</span>";
+    echo "<span>Query executada: <span class='highlight'>" . count($campaigns) . "</span> campanhas retornadas</span>";
+    echo "</div>";
+    
+    if (empty($campaigns)) {
+        echo "<div class='error'>";
+        echo "<span class='icon'>❌</span>";
+        echo "<span><strong>PROBLEMA CRÍTICO:</strong> Query não retornou nenhuma campanha!</span>";
+        echo "</div>";
+        echo "<p>Isso significa que o controller NÃO vai passar dados para a view.</p>";
+    } else {
+        echo "<h3>📊 Dados Retornados (primeiras 3 campanhas):</h3>";
+        
+        echo "<table>";
+        echo "<tr><th>ID</th><th>Nome</th><th>Status</th><th>Orçamento</th><th>Gastos</th><th>Vendas</th><th>ROAS</th></tr>";
+        
+        foreach (array_slice($campaigns, 0, 3) as $c) {
+            echo "<tr>";
+            echo "<td>{$c['id']}</td>";
+            echo "<td>" . htmlspecialchars(substr($c['campaign_name'], 0, 30)) . "</td>";
+            echo "<td><span class='badge'>{$c['status']}</span></td>";
+            echo "<td>R$ " . number_format(floatval($c['daily_budget']), 2, ',', '.') . "</td>";
+            echo "<td>R$ " . number_format(floatval($c['spend'] ?? 0), 2, ',', '.') . "</td>";
+            echo "<td>" . ($c['purchase'] ?? 0) . "</td>";
+            echo "<td>" . number_format(floatval($c['roas'] ?? 0), 2, ',', '.') . "x</td>";
+            echo "</tr>";
+        }
+        echo "</table>";
+        
+        echo "<h3>📝 Estrutura de Dados Completa (1ª campanha):</h3>";
+        echo "<pre>" . json_encode($campaigns[0], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE) . "</pre>";
+    }
+    
+} catch (Exception $e) {
+    echo "<div class='error'>";
+    echo "<span class='icon'>❌</span>";
+    echo "<span>Erro na query: " . $e->getMessage() . "</span>";
+    echo "</div>";
 }
 
-echo '<p class="success">✅ Conta: ' . htmlspecialchars($account['account_name']) . '</p>';
-echo '<p class="info">Account ID: act_' . $account['account_id'] . '</p>';
-
-echo '</div>';
+echo "</div>";
 
 // ========================================
-// 2. BUSCA INSIGHTS PELA CONTA
+// 3. SIMULAÇÃO DO CONTROLLER
 // ========================================
-echo '<div class="section">';
-echo '<h2>2️⃣ Buscando Insights Agregados</h2>';
+echo "<div class='step'>";
+echo "<h2>3️⃣ Simulação do Controller</h2>";
 
-echo '<p class="info">📡 Buscando TODOS os insights da conta de uma vez...</p>';
+echo "<p>Vamos simular o que o CampaignController faz:</p>";
 
-// Busca insights de TODAS as campanhas pela conta
-$url = "https://graph.facebook.com/v18.0/act_{$account['account_id']}/insights";
-$params = [
-    'level' => 'campaign',
-    'fields' => 'campaign_id,campaign_name,impressions,clicks,spend,reach,frequency,ctr,cpc,cpm,cpp,actions,action_values',
-    'date_preset' => 'maximum', // Período máximo disponível
-    'limit' => 100,
-    'access_token' => $account['access_token']
+$campaigns = $db->fetchAll($query, ['user_id' => $userId]);
+
+// Calcula stats
+$stats = [
+    'total_campaigns' => count($campaigns),
+    'active_campaigns' => 0,
+    'total_spend' => 0,
+    'total_revenue' => 0,
+    'avg_roas' => 0
 ];
 
-$ch = curl_init($url . '?' . http_build_query($params));
-curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
-curl_setopt($ch, CURLOPT_TIMEOUT, 60);
-
-$response = curl_exec($ch);
-$httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-curl_close($ch);
-
-echo '<p><strong>HTTP Code:</strong> <span class="' . ($httpCode === 200 ? 'success' : 'error') . '">' . $httpCode . '</span></p>';
-
-if ($httpCode !== 200) {
-    echo '<p class="error">❌ Erro na requisição</p>';
-    echo '<pre>' . htmlspecialchars($response) . '</pre>';
-    die('</div></body></html>');
+foreach ($campaigns as $c) {
+    if ($c['status'] === 'active') {
+        $stats['active_campaigns']++;
+    }
+    $stats['total_spend'] += floatval($c['spend'] ?? 0);
+    $stats['total_revenue'] += floatval($c['purchase_value'] ?? 0);
 }
 
-$data = json_decode($response, true);
-
-if (!isset($data['data']) || empty($data['data'])) {
-    echo '<p class="warning">⚠️ Nenhum insight encontrado</p>';
-    echo '<p>Isso significa que as campanhas não têm dados (nunca foram veiculadas ou não têm gastos).</p>';
-    echo '<pre>' . htmlspecialchars(json_encode($data, JSON_PRETTY_PRINT)) . '</pre>';
-    die('</div></body></html>');
+if ($stats['total_spend'] > 0) {
+    $stats['avg_roas'] = round($stats['total_revenue'] / $stats['total_spend'], 2);
 }
 
-$apiInsights = $data['data'];
-echo '<p class="success">✅ Encontrados <strong>' . count($apiInsights) . '</strong> insights na API!</p>';
+echo "<h3>📈 Estatísticas Calculadas:</h3>";
+echo "<table>";
+echo "<tr><th>Métrica</th><th>Valor</th></tr>";
+echo "<tr><td>Total de Campanhas</td><td><span class='highlight'>{$stats['total_campaigns']}</span></td></tr>";
+echo "<tr><td>Campanhas Ativas</td><td><span class='highlight'>{$stats['active_campaigns']}</span></td></tr>";
+echo "<tr><td>Total Gasto</td><td>R$ " . number_format($stats['total_spend'], 2, ',', '.') . "</td></tr>";
+echo "<tr><td>Total Receita</td><td>R$ " . number_format($stats['total_revenue'], 2, ',', '.') . "</td></tr>";
+echo "<tr><td>ROAS Médio</td><td>{$stats['avg_roas']}x</td></tr>";
+echo "</table>";
 
-echo '</div>';
-
-// ========================================
-// 3. PROCESSA E SALVA
-// ========================================
-echo '<div class="section">';
-echo '<h2>3️⃣ Salvando no Banco</h2>';
-
-$synced = 0;
-$notFound = 0;
-
-foreach ($apiInsights as $insights) {
-    $metaCampaignId = $insights['campaign_id'] ?? null;
-    $campaignName = $insights['campaign_name'] ?? 'Sem nome';
-    
-    if (!$metaCampaignId) continue;
-    
-    echo '<div class="campaign">';
-    echo '<strong>' . htmlspecialchars($campaignName) . '</strong><br>';
-    echo '<span class="info">ID: ' . $metaCampaignId . '</span><br>';
-    
-    // Busca campanha no banco
-    $campaign = $db->fetch("
-        SELECT * FROM campaigns
-        WHERE campaign_id = :campaign_id
-        AND user_id = :user_id
-    ", [
-        'campaign_id' => $metaCampaignId,
-        'user_id' => $userId
-    ]);
-    
-    if (!$campaign) {
-        echo '<span class="warning">⚠️ Campanha não existe no banco local (será ignorada)</span><br>';
-        $notFound++;
-        echo '</div>';
-        continue;
-    }
-    
-    // Extrai conversões
-    $purchase = 0;
-    $purchaseValue = 0;
-    $addToCart = 0;
-    $initiateCheckout = 0;
-    $lead = 0;
-    
-    if (isset($insights['actions'])) {
-        foreach ($insights['actions'] as $action) {
-            switch ($action['action_type']) {
-                case 'purchase':
-                case 'offsite_conversion.fb_pixel_purchase':
-                case 'omni_purchase':
-                    $purchase += intval($action['value'] ?? 0);
-                    break;
-                case 'add_to_cart':
-                case 'offsite_conversion.fb_pixel_add_to_cart':
-                    $addToCart += intval($action['value'] ?? 0);
-                    break;
-                case 'initiate_checkout':
-                case 'offsite_conversion.fb_pixel_initiate_checkout':
-                    $initiateCheckout += intval($action['value'] ?? 0);
-                    break;
-                case 'lead':
-                case 'offsite_conversion.fb_pixel_lead':
-                    $lead += intval($action['value'] ?? 0);
-                    break;
-            }
-        }
-    }
-    
-    if (isset($insights['action_values'])) {
-        foreach ($insights['action_values'] as $action) {
-            if (in_array($action['action_type'], ['purchase', 'offsite_conversion.fb_pixel_purchase', 'omni_purchase'])) {
-                $purchaseValue += floatval($action['value'] ?? 0);
-            }
-        }
-    }
-    
-    $spend = floatval($insights['spend'] ?? 0);
-    $impressions = intval($insights['impressions'] ?? 0);
-    $clicks = intval($insights['clicks'] ?? 0);
-    
-    // Calcula métricas
-    $roas = ($spend > 0 && $purchaseValue > 0) ? round($purchaseValue / $spend, 2) : 0;
-    $roi = ($spend > 0 && $purchaseValue > 0) ? round((($purchaseValue - $spend) / $spend) * 100, 2) : 0;
-    $cpa = ($purchase > 0 && $spend > 0) ? round($spend / $purchase, 2) : 0;
-    
-    // Período (últimos 2 anos até hoje)
-    $dateStart = date('Y-m-d', strtotime('-2 years'));
-    $dateStop = date('Y-m-d');
-    
-    // Salva
-    try {
-        $db->query("
-            INSERT INTO campaign_insights (
-                campaign_id,
-                date_start,
-                date_stop,
-                impressions,
-                clicks,
-                spend,
-                reach,
-                frequency,
-                ctr,
-                cpc,
-                cpm,
-                cpp,
-                purchase,
-                purchase_value,
-                add_to_cart,
-                initiate_checkout,
-                lead,
-                roas,
-                roi,
-                cpa
-            ) VALUES (
-                :campaign_id, :date_start, :date_stop,
-                :impressions, :clicks, :spend, :reach, :frequency,
-                :ctr, :cpc, :cpm, :cpp,
-                :purchase, :purchase_value, :add_to_cart, :initiate_checkout, :lead,
-                :roas, :roi, :cpa
-            )
-            ON DUPLICATE KEY UPDATE
-                impressions = VALUES(impressions),
-                clicks = VALUES(clicks),
-                spend = VALUES(spend),
-                reach = VALUES(reach),
-                frequency = VALUES(frequency),
-                ctr = VALUES(ctr),
-                cpc = VALUES(cpc),
-                cpm = VALUES(cpm),
-                cpp = VALUES(cpp),
-                purchase = VALUES(purchase),
-                purchase_value = VALUES(purchase_value),
-                add_to_cart = VALUES(add_to_cart),
-                initiate_checkout = VALUES(initiate_checkout),
-                lead = VALUES(lead),
-                roas = VALUES(roas),
-                roi = VALUES(roi),
-                cpa = VALUES(cpa)
-        ", [
-            'campaign_id' => $campaign['id'],
-            'date_start' => $dateStart,
-            'date_stop' => $dateStop,
-            'impressions' => $impressions,
-            'clicks' => $clicks,
-            'spend' => $spend,
-            'reach' => intval($insights['reach'] ?? 0),
-            'frequency' => floatval($insights['frequency'] ?? 0),
-            'ctr' => floatval($insights['ctr'] ?? 0),
-            'cpc' => floatval($insights['cpc'] ?? 0),
-            'cpm' => floatval($insights['cpm'] ?? 0),
-            'cpp' => floatval($insights['cpp'] ?? 0),
-            'purchase' => $purchase,
-            'purchase_value' => $purchaseValue,
-            'add_to_cart' => $addToCart,
-            'initiate_checkout' => $initiateCheckout,
-            'lead' => $lead,
-            'roas' => $roas,
-            'roi' => $roi,
-            'cpa' => $cpa
-        ]);
-        
-        echo '<span class="success">✅ Sincronizado!</span><br>';
-        echo '📊 Impressões: ' . number_format($impressions, 0, ',', '.') . ' | ';
-        echo '💰 Gastos: R$ ' . number_format($spend, 2, ',', '.') . '<br>';
-        
-        if ($purchase > 0 || $purchaseValue > 0) {
-            echo '🛒 Compras: ' . $purchase . ' | ';
-            echo '💵 Faturamento: R$ ' . number_format($purchaseValue, 2, ',', '.') . '<br>';
-            
-            if ($roas > 0) {
-                echo '📈 ROAS: ' . $roas . 'x | ROI: ' . $roi . '% | CPA: R$ ' . number_format($cpa, 2, ',', '.') . '<br>';
-            }
-        }
-        
-        $synced++;
-        
-    } catch (Exception $e) {
-        echo '<span class="error">❌ Erro ao salvar: ' . htmlspecialchars($e->getMessage()) . '</span><br>';
-    }
-    
-    echo '</div>';
-}
-
-echo '</div>';
-
-// ========================================
-// 4. RESULTADO
-// ========================================
-echo '<div class="section">';
-echo '<h2>4️⃣ Resultado Final</h2>';
-
-echo '<p class="success">✅ <strong>Sincronizados:</strong> ' . $synced . ' campanhas</p>';
-
-if ($notFound > 0) {
-    echo '<p class="info">ℹ️ <strong>Não encontradas no banco:</strong> ' . $notFound . '</p>';
-}
-
-$totalInsights = $db->fetch("
-    SELECT COUNT(*) as total 
-    FROM campaign_insights ci
-    JOIN campaigns c ON c.id = ci.campaign_id
-    WHERE c.user_id = :user_id
-", ['user_id' => $userId])['total'] ?? 0;
-
-echo '<p><strong>Total de insights no banco:</strong> ' . $totalInsights . '</p>';
-
-if ($totalInsights > 0) {
-    echo '<hr>';
-    echo '<p class="success">🎉 <strong>PRONTO!</strong> Agora você tem dados no dashboard!</p>';
-    echo '<a href="../public/index.php?page=campanhas" style="display: inline-block; padding: 15px 30px; background: #3b82f6; color: white; text-decoration: none; border-radius: 8px; margin: 15px 0; font-weight: bold; font-size: 16px;">📊 VER DASHBOARD</a>';
+if ($stats['total_campaigns'] > 0) {
+    echo "<div class='success'>";
+    echo "<span class='icon'>✅</span>";
+    echo "<span>Controller consegue processar os dados corretamente</span>";
+    echo "</div>";
 } else {
-    echo '<p class="error">❌ Nenhum insight foi salvo</p>';
-    echo '<p>Isso significa que suas campanhas não têm dados (nunca veicularam ou não têm gastos).</p>';
+    echo "<div class='error'>";
+    echo "<span class='icon'>❌</span>";
+    echo "<span><strong>PROBLEMA:</strong> Sem dados para processar</span>";
+    echo "</div>";
 }
 
-echo '</div>';
+echo "</div>";
 
+// ========================================
+// 4. VERIFICAÇÃO DO HTML RENDERIZADO
+// ========================================
+echo "<div class='step'>";
+echo "<h2>4️⃣ Como a View Deve Renderizar</h2>";
+
+echo "<p>A view <code>campaigns/index.php</code> deve receber as variáveis:</p>";
+
+echo "<div class='code-block'>";
+echo "<span class='keyword'>\$campaigns</span> = <span class='comment'>// Array com " . count($campaigns) . " campanhas</span><br>";
+echo "<span class='keyword'>\$stats</span> = <span class='comment'>// Array com estatísticas</span><br>";
+echo "<span class='keyword'>\$userColumns</span> = <span class='comment'>// Colunas personalizadas do usuário</span><br>";
+echo "</div>";
+
+echo "<h3>📋 Exemplo de Como Renderizar UMA Linha:</h3>";
+
+if (!empty($campaigns)) {
+    $c = $campaigns[0];
+    
+    echo "<div class='code-block'>";
+    echo "<span class='keyword'>&lt;tr</span> <br>";
+    echo "    data-id=<span class='string'>\"" . $c['id'] . "\"</span><br>";
+    echo "    data-campaign-id=<span class='string'>\"" . htmlspecialchars($c['campaign_id']) . "\"</span><br>";
+    echo "    data-name=<span class='string'>\"" . strtolower($c['campaign_name']) . "\"</span><br>";
+    echo "    data-status=<span class='string'>\"" . $c['status'] . "\"</span><br>";
+    echo "<span class='keyword'>&gt;</span><br>";
+    echo "    <span class='keyword'>&lt;td&gt;</span>" . htmlspecialchars(substr($c['campaign_name'], 0, 30)) . "<span class='keyword'>&lt;/td&gt;</span><br>";
+    echo "    <span class='keyword'>&lt;td&gt;</span>" . $c['status'] . "<span class='keyword'>&lt;/td&gt;</span><br>";
+    echo "    <span class='keyword'>&lt;td&gt;</span>R$ " . number_format(floatval($c['spend'] ?? 0), 2, ',', '.') . "<span class='keyword'>&lt;/td&gt;</span><br>";
+    echo "<span class='keyword'>&lt;/tr&gt;</span>";
+    echo "</div>";
+}
+
+echo "</div>";
+
+// ========================================
+// 5. TESTE DE ACESSO À VIEW
+// ========================================
+echo "<div class='step'>";
+echo "<h2>5️⃣ Teste de Acesso ao Dashboard</h2>";
+
+echo "<p>Vamos verificar se conseguimos acessar a página de campanhas:</p>";
+
+$dashboardUrl = '/utmtrack/index.php?page=campanhas';
+$fullUrl = 'https://ataweb.com.br' . $dashboardUrl;
+
+echo "<div class='success'>";
+echo "<span class='icon'>🔗</span>";
+echo "<span>URL do Dashboard: <a href='{$dashboardUrl}' target='_blank' style='color: #4ade80;'>{$fullUrl}</a></span>";
+echo "</div>";
+
+// Tenta simular o que acontece quando acessa
+echo "<h3>🔄 Fluxo Esperado:</h3>";
+echo "<ol style='line-height: 2;'>";
+echo "<li>✅ Usuário acessa <code>index.php?page=campanhas</code></li>";
+echo "<li>✅ Sistema carrega <code>CampaignController</code></li>";
+echo "<li>✅ Controller executa método <code>index()</code></li>";
+echo "<li>✅ Controller busca " . count($campaigns) . " campanhas do banco</li>";
+echo "<li>✅ Controller calcula estatísticas</li>";
+echo "<li>✅ Controller renderiza view <code>campaigns/index.php</code></li>";
+echo "<li>✅ View gera HTML com " . count($campaigns) . " linhas <code>&lt;tr&gt;</code></li>";
+echo "<li>✅ JavaScript carrega e lê os dados do DOM</li>";
+echo "<li>✅ Dashboard exibe as campanhas</li>";
+echo "</ol>";
+
+echo "</div>";
+
+// ========================================
+// 6. CHECKLIST DE PROBLEMAS COMUNS
+// ========================================
+echo "<div class='step'>";
+echo "<h2>6️⃣ Checklist de Problemas Comuns</h2>";
+
+$checks = [];
+
+// Check 1: Dados no banco
+$checks[] = [
+    'status' => count($campaigns) > 0,
+    'label' => 'Dados existem no banco',
+    'fix' => 'Execute sincronização no dashboard'
+];
+
+// Check 2: Controller existe
+$checks[] = [
+    'status' => $controllerExists,
+    'label' => 'CampaignController existe',
+    'fix' => 'Verifique o arquivo em /app/controllers/'
+];
+
+// Check 3: View existe
+$checks[] = [
+    'status' => $viewExists,
+    'label' => 'View campaigns/index existe',
+    'fix' => 'Verifique o arquivo em /app/views/campaigns/'
+];
+
+// Check 4: Rota configurada
+$routerPath = __DIR__ . '/index.php';
+$routerContent = file_exists($routerPath) ? file_get_contents($routerPath) : '';
+$hasRoute = strpos($routerContent, 'campanhas') !== false || strpos($routerContent, 'campaigns') !== false;
+$checks[] = [
+    'status' => $hasRoute,
+    'label' => 'Rota "campanhas" configurada',
+    'fix' => 'Configure a rota no index.php principal'
+];
+
+// Check 5: JavaScript existe
+$checks[] = [
+    'status' => $jsExists,
+    'label' => 'JavaScript do dashboard existe',
+    'fix' => 'Crie o arquivo em /assets/js/'
+];
+
+echo "<table>";
+echo "<tr><th>Verificação</th><th>Status</th><th>Ação se Falhar</th></tr>";
+
+foreach ($checks as $check) {
+    $statusIcon = $check['status'] ? '✅' : '❌';
+    $statusClass = $check['status'] ? 'success' : 'error';
+    
+    echo "<tr>";
+    echo "<td>{$check['label']}</td>";
+    echo "<td><span class='{$statusClass}'>{$statusIcon}</span></td>";
+    echo "<td>" . ($check['status'] ? '-' : $check['fix']) . "</td>";
+    echo "</tr>";
+}
+
+echo "</table>";
+
+$allPassed = array_reduce($checks, function($carry, $check) {
+    return $carry && $check['status'];
+}, true);
+
+if ($allPassed) {
+    echo "<div class='success' style='font-size: 18px; margin-top: 20px;'>";
+    echo "<span class='icon'>🎉</span>";
+    echo "<span><strong>Todos os checks passaram!</strong> O problema deve ser na renderização da view.</span>";
+    echo "</div>";
+} else {
+    echo "<div class='error' style='font-size: 18px; margin-top: 20px;'>";
+    echo "<span class='icon'>⚠️</span>";
+    echo "<span><strong>Alguns checks falharam.</strong> Corrija os itens marcados acima.</span>";
+    echo "</div>";
+}
+
+echo "</div>";
+
+// ========================================
+// 7. CÓDIGO DE EXEMPLO PARA A VIEW
+// ========================================
+echo "<div class='step'>";
+echo "<h2>7️⃣ Código Correto para a View</h2>";
+
+echo "<p>Cole este código no seu <code>app/views/campaigns/index.php</code> no loop de campanhas:</p>";
+
+echo "<pre style='background: #1e1e1e; color: #d4d4d4; padding: 20px; border-radius: 8px; font-size: 12px;'>";
+echo htmlspecialchars('<?php if (!empty($campaigns)): ?>
+    <?php foreach ($campaigns as $c): ?>
+    <tr 
+        data-id="<?= $c[\'id\'] ?>"
+        data-campaign-id="<?= htmlspecialchars($c[\'campaign_id\']) ?>"
+        data-name="<?= strtolower($c[\'campaign_name\']) ?>"
+        data-status="<?= $c[\'status\'] ?>"
+        data-account="<?= htmlspecialchars($c[\'account_name\'] ?? \'\') ?>"
+    >
+        <td><?= htmlspecialchars($c[\'campaign_name\']) ?></td>
+        <td><?= $c[\'status\'] ?></td>
+        <td>R$ <?= number_format($c[\'daily_budget\'], 2, \',\', \'.\') ?></td>
+        <td>R$ <?= number_format($c[\'spend\'] ?? 0, 2, \',\', \'.\') ?></td>
+        <td><?= $c[\'purchase\'] ?? 0 ?></td>
+        <td><?= number_format($c[\'roas\'] ?? 0, 2, \',\', \'.\') ?>x</td>
+    </tr>
+    <?php endforeach; ?>
+<?php else: ?>
+    <tr><td colspan="10">Nenhuma campanha encontrada</td></tr>
+<?php endif; ?>');
+echo "</pre>";
+
+echo "</div>";
+
+// ========================================
+// PRÓXIMOS PASSOS
+// ========================================
+echo "<div style='margin-top: 40px; padding: 30px; background: rgba(74, 222, 128, 0.1); border-radius: 10px; border: 2px solid rgba(74, 222, 128, 0.3);'>";
+echo "<h2 style='color: #4ade80; margin-top: 0;'>🎯 Próximos Passos</h2>";
+
+if (count($campaigns) > 0) {
+    echo "<p style='font-size: 16px;'>Você tem <strong>" . count($campaigns) . " campanhas</strong> prontas para exibir!</p>";
+    echo "<ol style='line-height: 2.5; font-size: 15px;'>";
+    echo "<li>📂 Abra o arquivo: <code>app/views/campaigns/index.php</code></li>";
+    echo "<li>🔍 Procure por: <code>&lt;tbody id=\"tableBody\"&gt;</code></li>";
+    echo "<li>✏️ Verifique se o loop <code>&lt;?php foreach (\$campaigns as \$c): ?&gt;</code> existe</li>";
+    echo "<li>🔧 Se não existir, adicione o código de exemplo acima</li>";
+    echo "<li>💾 Salve o arquivo</li>";
+    echo "<li>🔄 Limpe o cache: <kbd>Ctrl+Shift+Del</kbd></li>";
+    echo "<li>📊 Acesse: <a href='{$dashboardUrl}' style='color: #4ade80; font-weight: 600;'>Dashboard de Campanhas</a></li>";
+    echo "<li>🎉 As " . count($campaigns) . " campanhas devem aparecer!</li>";
+    echo "</ol>";
+} else {
+    echo "<p style='font-size: 16px;'>⚠️ Não há campanhas para exibir. Execute uma sincronização primeiro.</p>";
+}
+
+echo "<div style='margin-top: 20px;'>";
+echo "<a href='{$dashboardUrl}' class='btn'>📊 Abrir Dashboard</a>";
+echo "<a href='/utmtrack/debug-campaigns.php' class='btn' style='background: linear-gradient(135deg, #60a5fa 0%, #3b82f6 100%);'>🔍 Debug Simples</a>";
+echo "</div>";
+
+echo "</div>";
+
+echo "</div>";
+echo "</body>";
+echo "</html>";
 ?>
-
-<hr>
-<p style="text-align: center; color: #8b92a4;">UTMTrack v3.0 - Sincronização Definitiva</p>
-
-</body>
-</html>

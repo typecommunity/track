@@ -1,29 +1,44 @@
-<!-- 
-    ========================================
-    CAMINHO: /utmtrack/app/views/campaigns/index.php
-    ========================================
-    
-    UTMTrack - Dashboard de Campanhas V2.1
-    ATUALIZADO para nova estrutura de banco com campaign_insights
--->
-
 <?php
+/**
+ * ========================================
+ * UTMTRACK - DASHBOARD DE CAMPANHAS V3.0
+ * ========================================
+ * 
+ * Caminho: /utmtrack/app/views/campaigns/index.php
+ * 
+ * ✅ VERSÃO CORRIGIDA - URLs AJAX apontando para /ajax-campaigns.php
+ * 
+ * Funcionalidades completas:
+ * - Edição inline de campos
+ * - Filtros avançados
+ * - Período customizado
+ * - Todas as colunas disponíveis
+ * - Handler AJAX completo
+ * - ✅ URLs AJAX corrigidas (linhas 2527 e 2736)
+ */
+
 // ========================================
 // HANDLER AJAX
 // ========================================
 if (isset($_GET['ajax_action'])) {
+    // Limpa qualquer output anterior
     while (ob_get_level()) {
         ob_end_clean();
     }
     ob_start();
     
+    // Headers JSON
     header('Content-Type: application/json; charset=utf-8');
     header('Cache-Control: no-cache, must-revalidate');
     header('Pragma: no-cache');
     
+    // Desabilita display de erros para JSON limpo
     ini_set('display_errors', '0');
     error_reporting(0);
     
+    /**
+     * Responde com JSON
+     */
     function ajaxResponse($data, $httpCode = 200) {
         ob_get_clean();
         http_response_code($httpCode);
@@ -31,6 +46,9 @@ if (isset($_GET['ajax_action'])) {
         exit;
     }
     
+    /**
+     * Responde com erro JSON
+     */
     function ajaxError($message, $httpCode = 400, $details = null) {
         ajaxResponse([
             'success' => false,
@@ -40,6 +58,7 @@ if (isset($_GET['ajax_action'])) {
         ], $httpCode);
     }
     
+    // Verifica autenticação
     if (!isset($_SESSION['user_id'])) {
         ajaxError('Não autorizado - faça login novamente', 401);
     }
@@ -47,10 +66,12 @@ if (isset($_GET['ajax_action'])) {
     $userId = intval($_SESSION['user_id']);
     $action = $_GET['ajax_action'];
     
+    // Pega dados da requisição
     $rawInput = file_get_contents('php://input');
     $requestData = json_decode($rawInput, true) ?? $_POST;
     
     try {
+        // Carrega dependências
         $baseDir = dirname(__DIR__, 2);
         
         $requiredFiles = [
@@ -69,6 +90,7 @@ if (isset($_GET['ajax_action'])) {
         
         $db = Database::getInstance();
         
+        // Processa ação
         switch ($action) {
             
             // ========================================
@@ -82,11 +104,14 @@ if (isset($_GET['ajax_action'])) {
                     'date_preset' => $requestData['date_preset'] ?? 'maximum',
                     'time_range' => $requestData['time_range'] ?? null,
                     'breakdowns' => $requestData['breakdowns'] ?? [],
-                    'include_insights' => $requestData['include_insights'] ?? true
+                    'include_insights' => $requestData['include_insights'] ?? true,
+                    'include_actions' => true,
+                    'include_video_data' => true
                 ];
                 
                 $results = $metaSync->syncAll($options);
                 
+                // Busca campanhas atualizadas
                 $campaigns = $db->fetchAll("
                     SELECT 
                         c.*,
@@ -94,11 +119,22 @@ if (isset($_GET['ajax_action'])) {
                         ci.impressions,
                         ci.clicks,
                         ci.spend,
+                        ci.reach,
+                        ci.frequency,
+                        ci.ctr,
+                        ci.cpc,
+                        ci.cpm,
                         ci.purchase,
                         ci.purchase_value,
+                        ci.add_to_cart,
+                        ci.initiate_checkout,
+                        ci.view_content,
+                        ci.lead,
                         ci.roas,
                         ci.roi,
-                        ci.cpa
+                        ci.margin,
+                        ci.cpa,
+                        ci.cpi
                     FROM campaigns c
                     LEFT JOIN ad_accounts aa ON aa.id = c.ad_account_id
                     LEFT JOIN campaign_insights ci ON ci.campaign_id = c.id
@@ -106,11 +142,13 @@ if (isset($_GET['ajax_action'])) {
                     ORDER BY c.created_at DESC
                 ", ['user_id' => $userId]);
                 
+                // Calcula stats
                 $stats = [
                     'total_campaigns' => count($campaigns),
                     'active_campaigns' => 0,
                     'total_spend' => 0,
                     'total_revenue' => 0,
+                    'total_purchases' => 0,
                     'avg_roas' => 0
                 ];
                 
@@ -120,6 +158,7 @@ if (isset($_GET['ajax_action'])) {
                     }
                     $stats['total_spend'] += floatval($c['spend'] ?? 0);
                     $stats['total_revenue'] += floatval($c['purchase_value'] ?? 0);
+                    $stats['total_purchases'] += intval($c['purchase'] ?? 0);
                 }
                 
                 if ($stats['total_spend'] > 0) {
@@ -152,6 +191,7 @@ if (isset($_GET['ajax_action'])) {
                     ]);
                 }
                 
+                // Busca campanha com token
                 $campaign = $db->fetch("
                     SELECT c.*, aa.access_token 
                     FROM campaigns c
@@ -163,12 +203,14 @@ if (isset($_GET['ajax_action'])) {
                     ajaxError('Campanha não encontrada', 404);
                 }
                 
+                // Atualiza no banco
                 $updated = $db->update('campaigns',
                     ['status' => strtolower($newStatus)],
                     'id = :id',
                     ['id' => $campaignId]
                 );
                 
+                // Tenta atualizar no Meta
                 $metaUpdated = false;
                 $metaError = null;
                 
@@ -215,7 +257,7 @@ if (isset($_GET['ajax_action'])) {
                 break;
                 
             // ========================================
-            // ATUALIZAR CAMPO
+            // ATUALIZAR CAMPO (EDIÇÃO INLINE)
             // ========================================
             case 'update_field':
             case 'update_budget':
@@ -235,6 +277,7 @@ if (isset($_GET['ajax_action'])) {
                     ]);
                 }
                 
+                // Busca campanha
                 $campaign = $db->fetch("
                     SELECT c.*, aa.access_token 
                     FROM campaigns c
@@ -246,6 +289,7 @@ if (isset($_GET['ajax_action'])) {
                     ajaxError('Campanha não encontrada', 404);
                 }
                 
+                // Verifica se é ASC/CBO
                 $isASC = (
                     stripos($campaign['campaign_name'], 'advantage') !== false ||
                     stripos($campaign['campaign_name'], 'asc') !== false ||
@@ -253,6 +297,7 @@ if (isset($_GET['ajax_action'])) {
                     $campaign['objective'] === 'OUTCOME_SALES'
                 );
                 
+                // Atualiza no banco
                 $updated = $db->update('campaigns',
                     [$field => $value],
                     'id = :id',
@@ -393,15 +438,60 @@ if (isset($_GET['ajax_action'])) {
 }
 
 // ========================================
-// CONTINUA O HTML NORMAL
+// CARREGAMENTO DE DADOS - PARTE PRINCIPAL
 // ========================================
 
+// Carrega dependências se ainda não carregadas
+if (!class_exists('Database')) {
+    require_once dirname(__DIR__, 2) . '/core/Database.php';
+}
+
+$db = Database::getInstance();
+$userId = $_SESSION['user_id'] ?? 0;
+
+// Fallback para buscar campanhas
+if (!isset($campaigns) || empty($campaigns)) {
+    $campaigns = $db->fetchAll("
+        SELECT 
+            c.*,
+            aa.account_name,
+            ci.impressions,
+            ci.clicks,
+            ci.spend,
+            ci.reach,
+            ci.frequency,
+            ci.ctr,
+            ci.cpc,
+            ci.cpm,
+            ci.purchase,
+            ci.purchase_value,
+            ci.add_to_cart,
+            ci.initiate_checkout,
+            ci.view_content,
+            ci.lead,
+            ci.roas,
+            ci.roi,
+            ci.margin,
+            ci.cpa,
+            ci.cpi
+        FROM campaigns c
+        LEFT JOIN ad_accounts aa ON aa.id = c.ad_account_id
+        LEFT JOIN campaign_insights ci ON ci.campaign_id = c.id
+        WHERE c.user_id = :user_id
+        ORDER BY c.created_at DESC
+    ", ['user_id' => $userId]);
+    
+    error_log("[VIEW] Campanhas carregadas direto da view: " . count($campaigns));
+}
+
+// Inicializa variáveis padrão
 if (!isset($campaigns)) $campaigns = [];
 if (!isset($stats)) $stats = [];
 if (!isset($userColumns)) $userColumns = null;
 if (!isset($user)) $user = [];
 if (!isset($config)) $config = [];
 
+// Calcula estatísticas
 $stats = array_merge([
     'total_campaigns' => 0,
     'active_campaigns' => 0,
@@ -457,28 +547,96 @@ if (is_array($campaigns) && count($campaigns) > 0) {
     }
 }
 
+// ========================================
+// BUSCA PREFERÊNCIAS DE COLUNAS DO USUÁRIO
+// ========================================
+
+// Mapeamento: Nome do JS → Nome do PHP (slug)
+$columnMapping = [
+    'campaign_name' => 'nome',
+    'status' => 'status',
+    'account_name' => 'conta',
+    'daily_budget' => 'orcamento',
+    'spend' => 'gastos',
+    'impressions' => 'impressoes',
+    'clicks' => 'cliques',
+    'ctr' => 'ctr',
+    'cpc' => 'cpc',
+    'cpm' => 'cpm',
+    'purchase' => 'vendas',
+    'purchase_value' => 'faturamento',
+    'roas' => 'roas',
+    'roi' => 'roi',
+    'margin' => 'margem',
+    'cpa' => 'cpa',
+    'initiate_checkout' => 'ic',
+    'cpi' => 'cpi',
+    'add_to_cart' => 'add_carrinho',
+    'view_content' => 'ver_conteudo',
+    'lead' => 'leads',
+    'reach' => 'alcance',
+    'frequency' => 'frequencia',
+    'objective' => 'objetivo',
+    'last_sync' => 'ultima_sync'
+];
+
+$userColumnsData = $db->fetch("
+    SELECT preference_value 
+    FROM user_preferences 
+    WHERE user_id = :user_id 
+    AND preference_key = 'campaign_columns'
+", ['user_id' => $userId]);
+
+$userColumns = null;
+if ($userColumnsData && !empty($userColumnsData['preference_value'])) {
+    $decodedColumns = json_decode($userColumnsData['preference_value'], true);
+    if (is_array($decodedColumns) && count($decodedColumns) > 0) {
+        // Converte nomes do JS para nomes do PHP usando o mapeamento
+        $mappedColumns = [];
+        foreach ($decodedColumns as $col) {
+            if ($col === 'checkbox') {
+                $mappedColumns[] = 'checkbox';
+                continue;
+            }
+            
+            // Se tem mapeamento, usa o nome mapeado; senão usa o original
+            $mappedColumns[] = $columnMapping[$col] ?? $col;
+        }
+        
+        $userColumns = $mappedColumns;
+        error_log("[VIEW] Colunas customizadas carregadas e mapeadas: " . implode(', ', $userColumns));
+    }
+}
+
+// Colunas visíveis (usa as do usuário ou padrão)
 $defaultColumns = [
     'checkbox', 'nome', 'status', 'orcamento', 'vendas', 'faturamento', 
     'gastos', 'lucro', 'roas', 'roi', 'margem', 'cpa'
 ];
 $visibleColumns = $userColumns ?? $defaultColumns;
 
+// Garante que checkbox está sempre presente
 if (!in_array('checkbox', $visibleColumns)) {
     array_unshift($visibleColumns, 'checkbox');
 }
 
+// Cria mapeamento reverso para usar no modal
+$reverseMapping = array_flip($columnMapping);
+
+error_log("[VIEW] Colunas finais a exibir: " . implode(', ', $visibleColumns));
+
+// Configuração de assets
 $projectRoot = 'https://ataweb.com.br/utmtrack';
-$assetVersion = '2.1.' . time();
+$assetVersion = '3.0.' . time();
 $cssPath = $projectRoot . '/assets/css/utmtrack-dashboard-v2.css?v=' . $assetVersion;
 $jsPath = $projectRoot . '/assets/js/utmtrack-dashboard-v2.js?v=' . $assetVersion;
 ?>
-
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>UTMTrack - Dashboard de Campanhas v2.1</title>
+    <title>UTMTrack - Dashboard de Campanhas v3.0</title>
     
     <link rel="stylesheet" href="<?= $cssPath ?>">
     
@@ -851,7 +1009,7 @@ $jsPath = $projectRoot . '/assets/js/utmtrack-dashboard-v2.js?v=' . $assetVersio
                         
                         <?php if (in_array('nome', $visibleColumns)): ?>
                         <td data-column="nome">
-                            <div class="campaign-name-cell" 
+                            <div class="campaign-name-cell editable-field" 
                                  ondblclick="editField(this, <?= $c['id'] ?>, 'campaign_name', 'text')"
                                  data-value="<?= htmlspecialchars($c['campaign_name']) ?>">
                                 <?= htmlspecialchars($c['campaign_name']) ?>
@@ -1037,9 +1195,54 @@ $jsPath = $projectRoot . '/assets/js/utmtrack-dashboard-v2.js?v=' . $assetVersio
         </div>
         <div class="modal-body">
             <input type="text" id="columnSearch" placeholder="Buscar coluna..." class="filter-input" onkeyup="filterColumnsModal()">
-            <div id="columnsCheckboxes"></div>
+            <div id="columnsCheckboxes">
+                <?php
+                $allColumns = [
+                    'nome' => 'Nome da Campanha',
+                    'status' => 'Status',
+                    'orcamento' => 'Orçamento',
+                    'gastos' => 'Gastos',
+                    'impressoes' => 'Impressões',
+                    'cliques' => 'Cliques',
+                    'ctr' => 'CTR',
+                    'cpc' => 'CPC',
+                    'cpm' => 'CPM',
+                    'vendas' => 'Compras',
+                    'faturamento' => 'Faturamento',
+                    'lucro' => 'Lucro',
+                    'roas' => 'ROAS',
+                    'roi' => 'ROI',
+                    'margem' => 'Margem',
+                    'cpa' => 'CPA',
+                    'ic' => 'IC (Initiate Checkout)',
+                    'cpi' => 'CPI',
+                    'add_carrinho' => 'Add ao Carrinho',
+                    'ver_conteudo' => 'Ver Conteúdo',
+                    'leads' => 'Leads',
+                    'conversoes' => 'Conversões',
+                    'alcance' => 'Alcance',
+                    'frequencia' => 'Frequência',
+                    'conta' => 'Conta',
+                    'objetivo' => 'Objetivo',
+                    'ultima_sync' => 'Última Sincronização'
+                ];
+                
+                foreach ($allColumns as $key => $label):
+                    // Usa o nome JS (do reverseMapping) como value, mas mostra o label em português
+                    $jsName = $reverseMapping[$key] ?? $key;
+                    $checked = in_array($key, $visibleColumns) ? 'checked' : '';
+                ?>
+                <div class="column-checkbox-item" style="padding: 8px;">
+                    <label style="display: flex; align-items: center; cursor: pointer;">
+                        <input type="checkbox" value="<?= $jsName ?>" <?= $checked ?> style="margin-right: 8px;">
+                        <?= $label ?>
+                    </label>
+                </div>
+                <?php endforeach; ?>
+            </div>
         </div>
         <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="resetColumns()">Restaurar Padrão</button>
             <button class="btn btn-secondary" onclick="closeColumnsModal()">Cancelar</button>
             <button class="btn btn-primary" onclick="saveColumns()">Salvar</button>
         </div>
@@ -1047,6 +1250,315 @@ $jsPath = $projectRoot . '/assets/js/utmtrack-dashboard-v2.js?v=' . $assetVersio
 </div>
 
 <script src="<?= $jsPath ?>"></script>
+
+<script>
+// ========================================
+// FUNÇÕES JAVASCRIPT INLINE - ✅ CORRIGIDAS COM URLs DO ajax-campaigns.php
+// ========================================
+
+console.log('='.repeat(60));
+console.log('📊 DASHBOARD CAMPANHAS V3.0 - ✅ URLS CORRIGIDAS');
+console.log('='.repeat(60));
+console.log('Total campanhas PHP:', <?= count($campaigns) ?>);
+console.log('Linhas <tr> renderizadas:', document.querySelectorAll('#tableBody tr[data-id]').length);
+console.log('Stats:', <?= json_encode($stats) ?>);
+console.log('='.repeat(60));
+
+const phpCount = <?= count($campaigns) ?>;
+const domCount = document.querySelectorAll('#tableBody tr[data-id]').length;
+
+if (phpCount > 0 && domCount === 0) {
+    console.error('❌ ERRO: PHP tem dados mas DOM está vazio!');
+} else if (phpCount > 0 && domCount > 0) {
+    console.log('✅ SUCESSO: ' + domCount + ' campanhas renderizadas!');
+}
+
+function editField(element, campaignId, field, type) {
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    console.log('📝 EDITFIELD INLINE - Iniciando');
+    console.log('Campaign ID:', campaignId, 'Field:', field, 'Type:', type);
+    
+    if (element.querySelector('input')) {
+        console.log('⚠️ Campo já em edição');
+        return;
+    }
+    
+    const dataValue = element.getAttribute('data-value');
+    const textValue = element.textContent.trim();
+    const currentValue = (dataValue !== null && dataValue !== '') ? dataValue : textValue;
+    
+    console.log('Valores:', { dataValue, textValue, currentValue });
+    
+    const cleanValue = type === 'currency' 
+        ? currentValue.replace(/[R$\s.]/g, '').replace(',', '.')
+        : currentValue;
+    
+    console.log('Valor limpo:', cleanValue);
+    
+    const originalHTML = element.innerHTML;
+    
+    const input = document.createElement('input');
+    input.type = type === 'currency' ? 'number' : 'text';
+    input.value = type === 'currency' ? (parseFloat(cleanValue) || 0) : currentValue;
+    input.style.cssText = 'width:100%;padding:6px 8px;background:#2a2a2a;border:2px solid #4CAF50;color:#fff;border-radius:4px;font-size:13px;outline:none;box-sizing:border-box;';
+    
+    if (type === 'currency') {
+        input.step = '0.01';
+        input.min = '0';
+    }
+    
+    const save = async () => {
+        console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+        console.log('💾 SALVANDO CAMPO - INLINE');
+        
+        const newValue = type === 'currency' ? parseFloat(input.value) : input.value.trim();
+        const compareValue = type === 'currency' ? parseFloat(cleanValue) : currentValue;
+        
+        console.log('Comparação:', { antigo: compareValue, novo: newValue, mudou: newValue != compareValue });
+        
+        if (newValue == compareValue) {
+            console.log('⚠️ Valor não mudou, restaurando');
+            element.innerHTML = originalHTML;
+            return;
+        }
+        
+        try {
+            element.style.opacity = '0.6';
+            element.style.pointerEvents = 'none';
+            
+            // ✅ CORREÇÃO: URL correta para ajax-campaigns.php
+            const url = `${window.baseUrl}/ajax-campaigns.php?ajax_action=update_field`;
+            console.log('🌐 URL CORRIGIDA:', url);
+            
+            const payload = { campaign_id: campaignId, field: field, value: newValue };
+            console.log('📦 Payload:', JSON.stringify(payload, null, 2));
+            
+            console.log('🚀 Enviando requisição fetch...');
+            
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                credentials: 'include',
+                body: JSON.stringify(payload)
+            });
+            
+            console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+            console.log('📥 RESPOSTA RECEBIDA');
+            console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+            console.log('📊 Status HTTP:', response.status);
+            console.log('📋 Content-Type:', response.headers.get('Content-Type'));
+            console.log('✅ Response OK:', response.ok);
+            
+            const responseText = await response.text();
+            
+            console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+            console.log('📄 RESPOSTA COMPLETA (texto bruto):');
+            console.log(responseText);
+            console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+            console.log('📏 Tamanho:', responseText.length, 'caracteres');
+            console.log('🔍 Primeiro caractere:', responseText.charAt(0), '(código:', responseText.charCodeAt(0) + ')');
+            
+            if (responseText.includes('<!DOCTYPE') || responseText.includes('<html') || responseText.includes('<HTML')) {
+                console.error('❌ SERVIDOR RETORNOU HTML AO INVÉS DE JSON!');
+                throw new Error('Servidor retornou HTML. Possível sessão expirada. Recarregue a página.');
+            }
+            
+            if (responseText.includes('Fatal error') || responseText.includes('Warning:') || responseText.includes('Notice:') || responseText.includes('Parse error')) {
+                console.error('❌ ERRO PHP DETECTADO NA RESPOSTA!');
+                console.error('Resposta completa:', responseText);
+                throw new Error('Erro PHP no servidor. Verifique os logs do servidor.');
+            }
+            
+            if (responseText.trim() === '') {
+                console.error('❌ RESPOSTA VAZIA DO SERVIDOR!');
+                throw new Error('Servidor retornou resposta vazia. Verifique se o endpoint está correto.');
+            }
+            
+            let data;
+            try {
+                console.log('🔄 Tentando fazer parse do JSON...');
+                data = JSON.parse(responseText);
+                console.log('✅ JSON parseado com sucesso!');
+                console.log('📊 Objeto resultante:', data);
+            } catch (parseError) {
+                console.error('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+                console.error('❌ ERRO AO FAZER PARSE DO JSON');
+                console.error('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+                console.error('Parse Error:', parseError.message);
+                console.error('Stack:', parseError.stack);
+                console.error('Resposta (primeiros 500 chars):', responseText.substring(0, 500));
+                console.error('Resposta (últimos 500 chars):', responseText.substring(Math.max(0, responseText.length - 500)));
+                console.error('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+                throw new Error('Resposta inválida do servidor (não é JSON válido). Veja o console para detalhes.');
+            }
+            
+            console.log('🔍 Verificando estrutura do JSON...');
+            console.log('Tem "success"?', 'success' in data);
+            console.log('Tem "message"?', 'message' in data);
+            console.log('Valor de success:', data.success);
+            
+            if (data.success) {
+                console.log('✅ Servidor indicou sucesso!');
+                
+                element.setAttribute('data-value', newValue);
+                
+                if (type === 'currency') {
+                    const formatted = 'R$ ' + parseFloat(newValue).toLocaleString('pt-BR', {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2
+                    });
+                    element.textContent = formatted;
+                    console.log('💰 Valor formatado:', formatted);
+                } else {
+                    element.textContent = newValue;
+                    console.log('📝 Valor atualizado:', newValue);
+                }
+                
+                console.log('✅ Elemento atualizado:', {
+                    'data-value': element.getAttribute('data-value'),
+                    'textContent': element.textContent
+                });
+                
+                element.style.backgroundColor = '#4CAF5044';
+                element.style.transition = 'background-color 0.3s ease';
+                
+                setTimeout(() => {
+                    element.style.backgroundColor = '';
+                }, 2000);
+                
+                if (typeof showToast !== 'undefined') {
+                    showToast(data.message || '✅ Campo atualizado com sucesso!', 'success');
+                }
+                
+                console.log('✅ SALVAMENTO CONCLUÍDO COM SUCESSO!');
+                console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+            } else {
+                console.error('⚠️ Servidor retornou success=false');
+                console.error('Mensagem:', data.message);
+                throw new Error(data.message || 'Erro ao salvar campo');
+            }
+            
+        } catch (error) {
+            console.error('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+            console.error('❌ ERRO FINAL NO SALVAMENTO');
+            console.error('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+            console.error('Erro:', error.message);
+            console.error('Stack:', error.stack);
+            console.error('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+            
+            alert('Erro ao salvar: ' + error.message);
+            element.innerHTML = originalHTML;
+            
+        } finally {
+            element.style.opacity = '';
+            element.style.pointerEvents = '';
+            console.log('🔓 Interatividade restaurada');
+        }
+    };
+    
+    const cancel = () => {
+        console.log('🚫 Edição cancelada');
+        element.innerHTML = originalHTML;
+    };
+    
+    input.onkeydown = function(e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            console.log('⌨️ Enter pressionado');
+            save();
+        }
+        if (e.key === 'Escape') {
+            e.preventDefault();
+            console.log('⌨️ Escape pressionado');
+            cancel();
+        }
+    };
+    
+    input.onblur = function() {
+        console.log('👁️ Input perdeu foco');
+        save();
+    };
+    
+    element.innerHTML = '';
+    element.appendChild(input);
+    input.focus();
+    input.select();
+    
+    console.log('✅ Input criado e focado');
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+}
+
+function toggleStatus(checkbox, campaignId, metaCampaignId) {
+    console.log('🔄 TOGGLE STATUS', campaignId, metaCampaignId);
+    
+    const newStatus = checkbox.checked ? 'ACTIVE' : 'PAUSED';
+    
+    // ✅ CORREÇÃO: URL correta para ajax-campaigns.php
+    const url = `${window.baseUrl}/ajax-campaigns.php?ajax_action=update_status`;
+    console.log('🌐 URL CORRIGIDA:', url);
+    
+    fetch(url, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest'
+        },
+        credentials: 'include',
+        body: JSON.stringify({
+            campaign_id: campaignId,
+            meta_campaign_id: metaCampaignId,
+            status: newStatus
+        })
+    })
+    .then(response => response.text())
+    .then(text => {
+        console.log('Resposta:', text);
+        
+        try {
+            const data = JSON.parse(text);
+            
+            if (!data.success) {
+                checkbox.checked = !checkbox.checked;
+                alert('Erro: ' + data.message);
+            } else if (typeof showToast !== 'undefined') {
+                showToast(data.message || 'Status atualizado!', 'success');
+            }
+        } catch (parseError) {
+            console.error('Erro parse:', parseError);
+            checkbox.checked = !checkbox.checked;
+            alert('Erro ao processar resposta');
+        }
+    })
+    .catch(error => {
+        console.error('Erro:', error);
+        checkbox.checked = !checkbox.checked;
+    });
+}
+
+function showToast(message, type) {
+    const existingToast = document.querySelector('.toast');
+    if (existingToast) existingToast.remove();
+    
+    const toast = document.createElement('div');
+    toast.className = `toast toast-${type}`;
+    toast.textContent = message;
+    toast.style.cssText = `position:fixed;bottom:20px;right:20px;padding:14px 24px;background:${type === 'success' ? '#4CAF50' : '#f44336'};color:white;border-radius:6px;box-shadow:0 4px 12px rgba(0,0,0,0.3);z-index:10000;font-weight:500;`;
+    
+    document.body.appendChild(toast);
+    
+    setTimeout(() => toast.remove(), 3000);
+}
+
+window.editField = editField;
+window.toggleStatus = toggleStatus;
+window.showToast = showToast;
+
+console.log('✅ Funções inline registradas com URLs CORRIGIDAS para /ajax-campaigns.php');
+console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+</script>
 
 </body>
 </html>

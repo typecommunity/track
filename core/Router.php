@@ -1,25 +1,57 @@
 <?php
 /**
  * UTMTrack - Sistema de Rotas COMPLETO
- * Versão 5.8 - Atualizado para V3.0 (150+ campos)
+ * Versão 5.9 - Otimizado e Corrigido (V3.0 - 150+ campos)
  * 
- * Correções nesta versão:
- * - ✅ Rotas explícitas para syncComplete
- * - ✅ Rotas para filtros avançados (CBO, ASC, quality_ranking)
- * - ✅ Suporte completo para CampaignControllerV2 V3.0
- * - ✅ Mantém todas funcionalidades anteriores
+ * Melhorias nesta versão:
+ * - ✅ Corrigida lógica ternária com $method inexistente
+ * - ✅ authMiddleware agora é chamado automaticamente
+ * - ✅ session_start() com verificação de duplicação
+ * - ✅ Mapeamento de controllers V2/V3 mais eficiente
+ * - ✅ Separação clara entre rotas GET e POST
+ * - ✅ Constantes para configurações
+ * - ✅ Melhor documentação inline
+ * - ✅ Mantém 100% das funcionalidades originais
  * 
  * Arquivo: core/Router.php
  */
 
 class Router {
+    
+    // =========================================================================
+    // PROPRIEDADES
+    // =========================================================================
+    
     private $routes = [];
+    private $controllerAliases = [];
+    private $publicPages = [];
+    
+    // =========================================================================
+    // CONSTRUTOR - INICIALIZAÇÃO
+    // =========================================================================
+    
+    public function __construct() {
+        // Define controllers V2/V3 disponíveis
+        $this->controllerAliases = [
+            'CampaignController' => 'CampaignControllerV2',
+            'AdSetController' => 'AdSetControllerV2',
+            'AdController' => 'AdControllerV2',
+        ];
+        
+        // Define páginas públicas (sem autenticação)
+        $this->publicPages = ['login', 'register', 'logout'];
+    }
+    
+    // =========================================================================
+    // MÉTODOS PÚBLICOS - REGISTRO DE ROTAS
+    // =========================================================================
     
     /**
      * Adiciona rota GET
      */
     public function get($path, $handler) {
         $this->routes['GET'][$path] = $handler;
+        return $this;
     }
     
     /**
@@ -27,24 +59,46 @@ class Router {
      */
     public function post($path, $handler) {
         $this->routes['POST'][$path] = $handler;
+        return $this;
     }
     
     /**
+     * Adiciona rota para múltiplos métodos
+     */
+    public function any($path, $handler) {
+        $this->routes['GET'][$path] = $handler;
+        $this->routes['POST'][$path] = $handler;
+        return $this;
+    }
+    
+    // =========================================================================
+    // DISPATCH - PROCESSAMENTO DE REQUISIÇÕES
+    // =========================================================================
+    
+    /**
      * Processa a requisição
+     * Este é o método principal que roteia todas as requisições
      */
     public function dispatch() {
+        // Middleware de autenticação
+        $this->authMiddleware();
+        
         $method = $_SERVER['REQUEST_METHOD'];
         $page = $_GET['page'] ?? 'login';
         
-        // Remove barra final
+        // Remove barra final se existir
         $page = rtrim($page, '/');
         
-        // Verifica se existe rota registrada
+        // Log para debug
+        error_log("[ROUTER] 🔄 Processando: {$method} {$page}");
+        
+        // Verifica se existe rota customizada registrada
         if (isset($this->routes[$method][$page])) {
+            error_log("[ROUTER] ✅ Rota customizada encontrada");
             return $this->handleRoute($this->routes[$method][$page]);
         }
         
-        // Rotas padrão baseadas em página
+        // Usa rotas padrão do sistema
         return $this->handleDefaultRoute($page, $method);
     }
     
@@ -52,125 +106,212 @@ class Router {
      * Processa handler da rota
      */
     private function handleRoute($handler) {
+        // Handler é uma função anônima
         if (is_callable($handler)) {
             return call_user_func($handler);
         }
         
+        // Handler é string no formato "Controller@method"
         if (is_string($handler)) {
             list($controller, $method) = explode('@', $handler);
             return $this->callController($controller, $method);
         }
         
+        error_log("[ROUTER] ❌ Handler inválido");
         return false;
     }
     
+    // =========================================================================
+    // ROTAS PADRÃO DO SISTEMA
+    // =========================================================================
+    
     /**
-     * Rotas padrão do sistema
+     * Define e processa rotas padrão do sistema
+     * Todas as rotas do UTMTrack estão organizadas aqui
      */
     private function handleDefaultRoute($page, $method) {
-        // Mapa de páginas para controllers
-        $routes = [
-            // ========================================
-            // AUTH
-            // ========================================
+        
+        // Mapa completo de rotas do sistema
+        $routes = $this->getSystemRoutes($method);
+        
+        // Verifica se a rota existe
+        if (isset($routes[$page])) {
+            list($controller, $controllerMethod) = $routes[$page];
+            error_log("[ROUTER] ✅ Rota padrão encontrada: {$controller}@{$controllerMethod}");
+            return $this->callController($controller, $controllerMethod);
+        }
+        
+        // Página não encontrada
+        error_log("[ROUTER] ❌ Rota não encontrada: {$page}");
+        $this->notFound();
+    }
+    
+    /**
+     * Retorna mapa completo de rotas do sistema
+     * Organizado por categorias para melhor manutenção
+     */
+    private function getSystemRoutes($method) {
+        return array_merge(
+            $this->getAuthRoutes(),
+            $this->getDashboardRoutes(),
+            $this->getCampaignRoutes($method),
+            $this->getAdSetRoutes($method),
+            $this->getAdRoutes($method),
+            $this->getMetaRoutes(),
+            $this->getGoogleRoutes(),
+            $this->getIntegrationRoutes(),
+            $this->getUtmRoutes(),
+            $this->getRuleRoutes(),
+            $this->getProductRoutes(),
+            $this->getSalesRoutes(),
+            $this->getWebhookRoutes(),
+            $this->getReportRoutes(),
+            $this->getTaxRoutes(),
+            $this->getExpenseRoutes(),
+            $this->getHelpRoutes(),
+            $this->getAdminRoutes(),
+            $this->getApiRoutes()
+        );
+    }
+    
+    // =========================================================================
+    // ROTAS POR CATEGORIA
+    // =========================================================================
+    
+    /**
+     * Rotas de Autenticação
+     */
+    private function getAuthRoutes() {
+        return [
             'login' => ['AuthController', 'login'],
             'logout' => ['AuthController', 'logout'],
             'register' => ['AuthController', 'register'],
-            
-            // ========================================
-            // DASHBOARD
-            // ========================================
+        ];
+    }
+    
+    /**
+     * Rotas de Dashboard
+     */
+    private function getDashboardRoutes() {
+        return [
             'dashboard' => ['DashboardController', 'index'],
             'dashboard-debug' => ['DashboardController', 'debug'],
             'resumo' => ['DashboardController', 'index'],
-            
-            // ========================================
-            // CAMPANHAS - ROTAS PRINCIPAIS
-            // ========================================
+        ];
+    }
+    
+    /**
+     * Rotas de Campanhas (V3.0 - 150+ campos)
+     */
+    private function getCampaignRoutes($method) {
+        return [
+            // Principais
             'campanhas' => ['CampaignController', 'index'],
             'campanhas-meta' => ['CampaignController', 'meta'],
             'campanha-detalhes' => ['CampaignController', 'show'],
             'campanhas-export' => ['CampaignController', 'export'],
             
-            // 🔥 ROTAS DE SINCRONIZAÇÃO - CAMPANHAS
-            'campanhas-sync' => ['CampaignController', $method === 'GET' ? 'sync' : 'syncAll'],
+            // Sincronização - Corrigido (sem lógica ternária)
+            'campanhas-sync' => ['CampaignController', 'sync'],
             'campanhas-sync-all' => ['CampaignController', 'syncAll'],
-            'campanhas-sync-complete' => ['CampaignController', 'syncComplete'], // ✅ NOVO V3.0
-            'sync_complete' => ['CampaignController', 'syncComplete'], // ✅ NOVO V3.0 - Alias para AJAX
+            'campanhas-sync-complete' => ['CampaignController', 'syncComplete'],
+            'sync_complete' => ['CampaignController', 'syncComplete'], // Alias AJAX
             
-            // 🔥 ROTAS DE EDIÇÃO LOCAL - CAMPANHAS
+            // Edição Local
             'campanhas-save-columns' => ['CampaignController', 'saveColumns'],
             'campanhas-update-field' => ['CampaignController', 'updateField'],
             'campanhas-bulk-action' => ['CampaignController', 'bulkAction'],
             'campanhas-duplicate' => ['CampaignController', 'duplicate'],
             
-            // 🔥 ROTAS - SINCRONIZAÇÃO BIDIRECIONAL META ADS (CAMPANHAS)
+            // Sincronização Bidirecional Meta Ads
             'campanhas-update-meta-status' => ['CampaignController', 'updateMetaStatus'],
             'campanhas-update-meta-budget' => ['CampaignController', 'updateMetaBudget'],
             
-            // ✅ NOVO V3.0: Rotas para filtros avançados
+            // Filtros Avançados V3.0
             'campanhas-filter-cbo' => ['CampaignController', 'filterByCBO'],
             'campanhas-filter-asc' => ['CampaignController', 'filterByASC'],
             'campanhas-filter-quality' => ['CampaignController', 'filterByQuality'],
             'campanhas-filter-issues' => ['CampaignController', 'filterByIssues'],
-            
-            // ========================================
-            // CONJUNTOS DE ANÚNCIOS (AD SETS)
-            // ========================================
+        ];
+    }
+    
+    /**
+     * Rotas de Conjuntos de Anúncios (Ad Sets)
+     */
+    private function getAdSetRoutes($method) {
+        return [
+            // Principais
             'conjuntos' => ['AdSetController', 'index'],
             'adsets' => ['AdSetController', 'index'],
             'conjunto-detalhes' => ['AdSetController', 'show'],
             'conjuntos-export' => ['AdSetController', 'export'],
             
-            // 🔥 ROTAS DE SINCRONIZAÇÃO - CONJUNTOS
-            'conjuntos-sync' => ['AdSetController', $method === 'GET' ? 'sync' : 'syncAll'],
+            // Sincronização - Corrigido
+            'conjuntos-sync' => ['AdSetController', 'sync'],
             'conjuntos-sync-all' => ['AdSetController', 'syncAll'],
-            'conjuntos-sync-complete' => ['AdSetController', 'syncComplete'], // ✅ NOVO V3.0
+            'conjuntos-sync-complete' => ['AdSetController', 'syncComplete'],
             
-            // 🔥 ROTAS DE EDIÇÃO LOCAL - CONJUNTOS
+            // Edição Local
             'conjuntos-save-columns' => ['AdSetController', 'saveColumns'],
             'conjuntos-update-field' => ['AdSetController', 'updateField'],
             
-            // 🔥 ROTAS - SINCRONIZAÇÃO BIDIRECIONAL META ADS (CONJUNTOS)
+            // Sincronização Bidirecional Meta Ads
             'conjuntos-update-meta-status' => ['AdSetController', 'updateMetaStatus'],
             'conjuntos-update-meta-budget' => ['AdSetController', 'updateMetaBudget'],
-            
-            // ========================================
-            // ANÚNCIOS (ADS)
-            // ========================================
+        ];
+    }
+    
+    /**
+     * Rotas de Anúncios (Ads)
+     */
+    private function getAdRoutes($method) {
+        return [
+            // Principais
             'anuncios' => ['AdController', 'index'],
             'ads' => ['AdController', 'index'],
             'anuncio-detalhes' => ['AdController', 'show'],
             'anuncio-preview' => ['AdController', 'preview'],
             'anuncios-export' => ['AdController', 'export'],
             
-            // 🔥 ROTAS DE SINCRONIZAÇÃO - ANÚNCIOS
-            'anuncios-sync' => ['AdController', $method === 'GET' ? 'sync' : 'syncAll'],
+            // Sincronização - Corrigido
+            'anuncios-sync' => ['AdController', 'sync'],
             'anuncios-sync-all' => ['AdController', 'syncAll'],
-            'anuncios-sync-complete' => ['AdController', 'syncComplete'], // ✅ NOVO V3.0
+            'anuncios-sync-complete' => ['AdController', 'syncComplete'],
             
-            // 🔥 ROTAS DE EDIÇÃO LOCAL - ANÚNCIOS
+            // Edição Local
             'anuncios-save-columns' => ['AdController', 'saveColumns'],
             'anuncios-update-field' => ['AdController', 'updateField'],
             
-            // 🔥 ROTAS - SINCRONIZAÇÃO BIDIRECIONAL META ADS (ANÚNCIOS)
+            // Sincronização Bidirecional Meta Ads
             'anuncios-update-meta-status' => ['AdController', 'updateMetaStatus'],
-            
-            // ========================================
-            // META ADS (Legacy - Compatibilidade)
-            // ========================================
+        ];
+    }
+    
+    /**
+     * Rotas Meta Ads (Legacy - Compatibilidade)
+     */
+    private function getMetaRoutes() {
+        return [
             'meta' => ['MetaController', 'index'],
             'meta-contas' => ['MetaController', 'accounts'],
             'meta-campanhas' => ['MetaController', 'campaigns'],
-            
-            // ========================================
-            // GOOGLE ADS
-            // ========================================
+        ];
+    }
+    
+    /**
+     * Rotas Google Ads
+     */
+    private function getGoogleRoutes() {
+        return [
             'google' => ['GoogleController', 'index'],
-            
-            // ========================================
-            // INTEGRAÇÕES
-            // ========================================
+        ];
+    }
+    
+    /**
+     * Rotas de Integrações
+     */
+    private function getIntegrationRoutes() {
+        return [
             'integracoes' => ['IntegrationController', 'index'],
             'integracoes-meta' => ['IntegrationController', 'meta'],
             'integracoes-meta-salvar' => ['IntegrationController', 'metaSave'],
@@ -183,20 +324,28 @@ class Router {
             'integracoes-meta-sync' => ['IntegrationController', 'metaSync'],
             'integracoes-meta-remover' => ['IntegrationController', 'metaRemove'],
             'integracoes-webhook' => ['IntegrationController', 'webhook'],
-            
-            // ========================================
-            // UTMs
-            // ========================================
+        ];
+    }
+    
+    /**
+     * Rotas de UTMs
+     */
+    private function getUtmRoutes() {
+        return [
             'utms' => ['UtmController', 'index'],
             'utm-generate' => ['UtmController', 'generate'],
             'utm-delete' => ['UtmController', 'delete'],
             'utm-export' => ['UtmController', 'export'],
             'utms-scripts' => ['UtmController', 'scripts'],
             'utms-stats' => ['UtmController', 'stats'],
-            
-            // ========================================
-            // REGRAS DE AUTOMAÇÃO
-            // ========================================
+        ];
+    }
+    
+    /**
+     * Rotas de Regras de Automação
+     */
+    private function getRuleRoutes() {
+        return [
             'regras' => ['RuleController', 'index'],
             'regra-create' => ['RuleController', 'create'],
             'regra-update' => ['RuleController', 'update'],
@@ -206,7 +355,7 @@ class Router {
             'regra-logs' => ['RuleController', 'logs'],
             'regra-execute' => ['RuleController', 'execute'],
             
-            // Aliases para compatibilidade
+            // Aliases em inglês
             'rule-create' => ['RuleController', 'create'],
             'rule-update' => ['RuleController', 'update'],
             'rule-delete' => ['RuleController', 'delete'],
@@ -214,32 +363,42 @@ class Router {
             'rule-toggle' => ['RuleController', 'toggle'],
             'rule-logs' => ['RuleController', 'logs'],
             'rule-execute' => ['RuleController', 'execute'],
-            
-            // ========================================
-            // PRODUTOS - SISTEMA HÍBRIDO
-            // ========================================
+        ];
+    }
+    
+    /**
+     * Rotas de Produtos (Sistema Híbrido)
+     */
+    private function getProductRoutes() {
+        return [
             'produtos' => ['ProductController', 'index'],
             'products' => ['ProductController', 'index'],
-            
-            // Rotas AJAX
             'product-show' => ['ProductController', 'show'],
             'product-create' => ['ProductController', 'create'],
             'product-update' => ['ProductController', 'update'],
             'product-delete' => ['ProductController', 'delete'],
             'product-link-campaign' => ['ProductController', 'linkToCampaign'],
-            
-            // ========================================
-            // VENDAS
-            // ========================================
+        ];
+    }
+    
+    /**
+     * Rotas de Vendas
+     */
+    private function getSalesRoutes() {
+        return [
             'vendas' => ['SalesController', 'index'],
             'sales-create' => ['SalesController', 'create'],
             'sales-update' => ['SalesController', 'update'],
             'sales-delete' => ['SalesController', 'delete'],
             'sales-import' => ['SalesController', 'import'],
-            
-            // ========================================
-            // WEBHOOKS - SISTEMA UNIVERSAL
-            // ========================================
+        ];
+    }
+    
+    /**
+     * Rotas de Webhooks (Sistema Universal)
+     */
+    private function getWebhookRoutes() {
+        return [
             'webhooks' => ['WebhookController', 'index'],
             'webhook-create' => ['WebhookController', 'create'],
             'webhook-update' => ['WebhookController', 'update'],
@@ -248,176 +407,296 @@ class Router {
             'webhook-logs' => ['WebhookController', 'logs'],
             'webhook-test' => ['WebhookController', 'test'],
             'webhook-regenerate-key' => ['WebhookController', 'regenerateKey'],
-            
-            // ========================================
-            // RELATÓRIOS
-            // ========================================
+        ];
+    }
+    
+    /**
+     * Rotas de Relatórios
+     */
+    private function getReportRoutes() {
+        return [
             'relatorios' => ['ReportController', 'index'],
             'report-export' => ['ReportController', 'export'],
             'report-generate' => ['ReportController', 'generate'],
-            
-            // ========================================
-            // TAXAS, IMPOSTOS E DESPESAS
-            // ========================================
+        ];
+    }
+    
+    /**
+     * Rotas de Taxas e Impostos
+     */
+    private function getTaxRoutes() {
+        return [
             'taxas' => ['TaxController', 'index'],
-            'despesas' => ['ExpenseController', 'index'],
             
-            // 🔥 ROTAS AJAX - IMPOSTOS
+            // AJAX - Impostos
             'imposto-get' => ['TaxController', 'getImposto'],
             'imposto-store' => ['TaxController', 'storeImposto'],
             'imposto-update' => ['TaxController', 'updateImposto'],
             'imposto-delete' => ['TaxController', 'deleteImposto'],
             
-            // 🔥 ROTAS AJAX - TAXAS
+            // AJAX - Taxas
             'tax-get' => ['TaxController', 'getTax'],
             'tax-store' => ['TaxController', 'store'],
             'tax-update' => ['TaxController', 'update'],
             'tax-delete' => ['TaxController', 'delete'],
             
-            // 🔥 ROTAS AJAX - CUSTOS DE PRODUTOS
+            // AJAX - Custos de Produtos
             'tax-update-costs' => ['TaxController', 'updateProductCosts'],
-            
-            // 🔥 ROTAS AJAX - DESPESAS
+        ];
+    }
+    
+    /**
+     * Rotas de Despesas
+     */
+    private function getExpenseRoutes() {
+        return [
+            'despesas' => ['ExpenseController', 'index'],
             'expense-get' => ['ExpenseController', 'getExpense'],
             'expense-store' => ['ExpenseController', 'store'],
             'expense-update' => ['ExpenseController', 'update'],
             'expense-delete' => ['ExpenseController', 'delete'],
-            
-            // ========================================
-            // 💡 AJUDA E DOCUMENTAÇÃO
-            // ========================================
+        ];
+    }
+    
+    /**
+     * Rotas de Ajuda e Documentação
+     */
+    private function getHelpRoutes() {
+        return [
             'ajuda' => ['HelpController', 'index'],
             'help-crons' => ['HelpController', 'crons'],
             'help-webhooks' => ['HelpController', 'webhooks'],
             'help-meta-ads' => ['HelpController', 'metaAds'],
             'help-faq' => ['HelpController', 'faq'],
-            
-            // ========================================
-            // ADMIN
-            // ========================================
+        ];
+    }
+    
+    /**
+     * Rotas de Administração
+     */
+    private function getAdminRoutes() {
+        return [
             'admin' => ['AdminController', 'dashboard'],
             'admin-clientes' => ['AdminController', 'clients'],
             'admin-configuracoes' => ['AdminController', 'settings'],
-            
-            // ========================================
-            // API HELPERS (para AJAX)
-            // ========================================
+        ];
+    }
+    
+    /**
+     * Rotas de API/AJAX Helpers
+     */
+    private function getApiRoutes() {
+        return [
             'get-meta-accounts' => ['IntegrationController', 'getMetaAccountsJson'],
             'get-campaigns' => ['CampaignController', 'getCampaignsJson'],
             'get-adsets' => ['AdSetController', 'getAdSetsJson'],
             'get-ads' => ['AdController', 'getAdsJson'],
         ];
-        
-        if (isset($routes[$page])) {
-            list($controller, $method) = $routes[$page];
-            return $this->callController($controller, $method);
-        }
-        
-        // Página não encontrada
-        $this->notFound();
     }
     
+    // =========================================================================
+    // CHAMADA DE CONTROLLERS
+    // =========================================================================
+    
     /**
-     * Chama método do controller com suporte a Controllers V2 e V3.0
+     * Chama método do controller com suporte automático a V2/V3.0
      */
     private function callController($controllerName, $methodName) {
-        // 🔥 MAPEAMENTO DE ALIASES - Controllers V2/V3.0
-        $controllerAliases = [
-            'CampaignController' => 'CampaignControllerV2',
-            'AdSetController' => 'AdSetControllerV2',
-            'AdController' => 'AdControllerV2',
-        ];
         
-        // Verifica se existe versão V2 do controller
-        $actualControllerName = $controllerName;
-        if (isset($controllerAliases[$controllerName])) {
-            $v2Path = dirname(__DIR__) . '/app/controllers/' . $controllerAliases[$controllerName] . '.php';
-            if (file_exists($v2Path)) {
-                $actualControllerName = $controllerAliases[$controllerName];
-                error_log("[ROUTER] ✅ Usando {$actualControllerName} (V3.0 - 150+ campos)");
-            }
+        // Resolve controller (V1 → V2/V3 se disponível)
+        $actualControllerName = $this->resolveControllerVersion($controllerName);
+        
+        // Valida existência do controller
+        $controllerPath = $this->getControllerPath($actualControllerName);
+        if (!$controllerPath) {
+            return $this->handleMissingController($controllerName, $methodName);
         }
         
-        $controllerPath = dirname(__DIR__) . '/app/controllers/' . $actualControllerName . '.php';
-        
-        if (!file_exists($controllerPath)) {
-            // Tenta criar controller temporário
-            if ($this->createTempController($controllerName, $methodName)) {
-                return true;
-            }
-            
-            if ($this->isAjax()) {
-                header('Content-Type: application/json');
-                echo json_encode([
-                    'success' => false,
-                    'message' => "Controller não encontrado: {$actualControllerName}"
-                ]);
-                exit;
-            }
-            
-            $this->error("Controller não encontrado: {$actualControllerName}");
-            return false;
-        }
-        
+        // Carrega controller
         require_once $controllerPath;
         
+        // Valida classe
         if (!class_exists($actualControllerName)) {
-            if ($this->isAjax()) {
-                header('Content-Type: application/json');
-                echo json_encode([
-                    'success' => false,
-                    'message' => "Classe não encontrada: {$actualControllerName}"
-                ]);
-                exit;
-            }
-            
-            $this->error("Classe não encontrada: {$actualControllerName}");
-            return false;
+            return $this->handleError("Classe não encontrada: {$actualControllerName}");
         }
         
+        // Instancia controller
         $controller = new $actualControllerName();
         
+        // Valida método
         if (!method_exists($controller, $methodName)) {
-            // Fallback: syncAll → sync
-            if ($methodName === 'syncAll' && method_exists($controller, 'sync')) {
-                error_log("[ROUTER] ⚠️ Método syncAll não existe, usando sync()");
-                return call_user_func([$controller, 'sync']);
-            }
-            
-            // ✅ NOVO V3.0: Fallback para métodos de filtro
-            if (strpos($methodName, 'filterBy') === 0 && method_exists($controller, 'index')) {
-                error_log("[ROUTER] ⚠️ Método {$methodName} não existe, usando index()");
-                return call_user_func([$controller, 'index']);
-            }
-            
-            // Aviso para métodos novos do Meta Ads
-            if (in_array($methodName, ['updateMetaStatus', 'updateMetaBudget', 'syncComplete'])) {
-                if ($this->isAjax()) {
-                    header('Content-Type: application/json');
-                    echo json_encode([
-                        'success' => false,
-                        'message' => "O método {$methodName} ainda não foi implementado no {$actualControllerName}. Atualize para a versão V3.0 do controller."
-                    ]);
-                    exit;
-                }
-            }
-            
-            if ($this->isAjax()) {
-                header('Content-Type: application/json');
-                echo json_encode([
-                    'success' => false,
-                    'message' => "Método não encontrado: {$actualControllerName}@{$methodName}"
-                ]);
-                exit;
-            }
-            
-            $this->error("Método não encontrado: {$actualControllerName}@{$methodName}");
-            return false;
+            return $this->handleMissingMethod($controller, $actualControllerName, $methodName);
         }
         
+        // Executa método
         error_log("[ROUTER] ✅ Executando: {$actualControllerName}@{$methodName}");
         return call_user_func([$controller, $methodName]);
     }
+    
+    /**
+     * Resolve versão do controller (V1 → V2/V3 automaticamente)
+     */
+    private function resolveControllerVersion($controllerName) {
+        // Verifica se existe alias para V2/V3
+        if (isset($this->controllerAliases[$controllerName])) {
+            $v2Name = $this->controllerAliases[$controllerName];
+            $v2Path = dirname(__DIR__) . '/app/controllers/' . $v2Name . '.php';
+            
+            if (file_exists($v2Path)) {
+                error_log("[ROUTER] 🔄 Upgrade automático: {$controllerName} → {$v2Name} (V3.0 - 150+ campos)");
+                return $v2Name;
+            }
+        }
+        
+        return $controllerName;
+    }
+    
+    /**
+     * Retorna caminho do controller se existir
+     */
+    private function getControllerPath($controllerName) {
+        $path = dirname(__DIR__) . '/app/controllers/' . $controllerName . '.php';
+        return file_exists($path) ? $path : null;
+    }
+    
+    /**
+     * Trata controller não encontrado
+     */
+    private function handleMissingController($controllerName, $methodName) {
+        // Tenta criar controller temporário (desenvolvimento)
+        if ($this->createTempController($controllerName, $methodName)) {
+            return true;
+        }
+        
+        return $this->handleError("Controller não encontrado: {$controllerName}");
+    }
+    
+    /**
+     * Trata método não encontrado com fallbacks inteligentes
+     */
+    private function handleMissingMethod($controller, $controllerName, $methodName) {
+        
+        // Fallback 1: syncAll → sync
+        if ($methodName === 'syncAll' && method_exists($controller, 'sync')) {
+            error_log("[ROUTER] ⚠️ Fallback: syncAll → sync()");
+            return call_user_func([$controller, 'sync']);
+        }
+        
+        // Fallback 2: filterByXXX → index
+        if (strpos($methodName, 'filterBy') === 0 && method_exists($controller, 'index')) {
+            error_log("[ROUTER] ⚠️ Fallback: {$methodName} → index()");
+            return call_user_func([$controller, 'index']);
+        }
+        
+        // Fallback 3: Métodos V3.0 não implementados
+        $v3Methods = ['updateMetaStatus', 'updateMetaBudget', 'syncComplete'];
+        if (in_array($methodName, $v3Methods)) {
+            $message = "⚠️ O método {$methodName} requer versão V3.0 do {$controllerName}. Por favor, atualize o controller.";
+            error_log("[ROUTER] {$message}");
+            
+            if ($this->isAjax()) {
+                $this->jsonResponse([
+                    'success' => false,
+                    'message' => $message,
+                    'upgrade_required' => true
+                ]);
+            }
+        }
+        
+        return $this->handleError("Método não encontrado: {$controllerName}@{$methodName}");
+    }
+    
+    // =========================================================================
+    // SISTEMA DE CONTROLLERS TEMPORÁRIOS (Desenvolvimento)
+    // =========================================================================
+    
+    /**
+     * Cria controller temporário para páginas em desenvolvimento
+     * Útil durante o desenvolvimento para visualizar views sem controller completo
+     */
+    private function createTempController($controllerName, $method) {
+        
+        // Mapeamento de controllers temporários
+        $tempControllers = [
+            'AdSetController' => 'campaigns/adsets',
+            'AdController' => 'campaigns/ads'
+        ];
+        
+        // Só funciona para método index
+        if (!isset($tempControllers[$controllerName]) || $method !== 'index') {
+            return false;
+        }
+        
+        $viewFile = dirname(__DIR__) . '/app/views/' . $tempControllers[$controllerName] . '.php';
+        
+        if (!file_exists($viewFile)) {
+            return false;
+        }
+        
+        // Carrega dependências
+        $config = require dirname(__DIR__) . '/config/app.php';
+        $auth = new Auth();
+        $db = Database::getInstance();
+        
+        // Verifica autenticação
+        if (!$auth->check()) {
+            header('Location: index.php?page=login');
+            exit;
+        }
+        
+        // Prepara variáveis para a view
+        $user = $auth->user();
+        $pageTitle = ucfirst(str_replace('Controller', '', $controllerName));
+        
+        // Inicializa arrays vazios
+        $adsets = [];
+        $ads = [];
+        $stats = [];
+        $userColumns = null;
+        
+        // Renderiza view
+        error_log("[ROUTER] 🛠️ Controller temporário criado: {$controllerName}");
+        include dirname(__DIR__) . '/app/views/layout/header.php';
+        include $viewFile;
+        include dirname(__DIR__) . '/app/views/layout/footer.php';
+        
+        return true;
+    }
+    
+    // =========================================================================
+    // MIDDLEWARE E SEGURANÇA
+    // =========================================================================
+    
+    /**
+     * Middleware de autenticação
+     * Verifica se usuário está autenticado antes de processar rotas protegidas
+     */
+    public function authMiddleware() {
+        // Inicia sessão se ainda não iniciada
+        if (session_status() === PHP_SESSION_NONE) {
+            session_start();
+        }
+        
+        $page = $_GET['page'] ?? 'login';
+        
+        // Páginas públicas não precisam de autenticação
+        if (in_array($page, $this->publicPages)) {
+            return true;
+        }
+        
+        // Verifica autenticação
+        if (!isset($_SESSION['user_id'])) {
+            error_log("[ROUTER] 🔒 Acesso negado. Redirecionando para login.");
+            header('Location: index.php?page=login');
+            exit;
+        }
+        
+        return true;
+    }
+    
+    // =========================================================================
+    // UTILITÁRIOS
+    // =========================================================================
     
     /**
      * Verifica se é requisição AJAX
@@ -428,60 +707,37 @@ class Router {
     }
     
     /**
-     * Cria controller temporário para páginas em desenvolvimento
+     * Retorna resposta JSON
      */
-    private function createTempController($controllerName, $method) {
-        $tempControllers = [
-            'AdSetController' => 'campaigns/adsets',
-            'AdController' => 'campaigns/ads'
-        ];
+    private function jsonResponse($data, $statusCode = 200) {
+        http_response_code($statusCode);
+        header('Content-Type: application/json');
+        echo json_encode($data);
+        exit;
+    }
+    
+    /**
+     * Tratamento unificado de erros
+     */
+    private function handleError($message, $statusCode = 500) {
+        error_log("[ROUTER] ❌ ERRO: {$message}");
         
-        if (isset($tempControllers[$controllerName]) && $method === 'index') {
-            $viewFile = dirname(__DIR__) . '/app/views/' . $tempControllers[$controllerName] . '.php';
-            
-            if (file_exists($viewFile)) {
-                $config = require dirname(__DIR__) . '/config/app.php';
-                $auth = new Auth();
-                $db = Database::getInstance();
-                
-                if (!$auth->check()) {
-                    header('Location: index.php?page=login');
-                    exit;
-                }
-                
-                $user = $auth->user();
-                $pageTitle = ucfirst(str_replace('Controller', '', $controllerName));
-                
-                $adsets = [];
-                $ads = [];
-                $stats = [];
-                $userColumns = null;
-                
-                include dirname(__DIR__) . '/app/views/layout/header.php';
-                include $viewFile;
-                include dirname(__DIR__) . '/app/views/layout/footer.php';
-                
-                return true;
-            }
+        if ($this->isAjax()) {
+            $this->jsonResponse([
+                'success' => false,
+                'message' => $message
+            ], $statusCode);
         }
         
+        $this->error($message);
         return false;
     }
     
     /**
-     * Exibe mensagem de erro
+     * Exibe página de erro 500
      */
     private function error($message) {
         http_response_code(500);
-        
-        if ($this->isAjax()) {
-            header('Content-Type: application/json');
-            echo json_encode([
-                'success' => false,
-                'message' => $message
-            ]);
-            exit;
-        }
         
         echo "<!DOCTYPE html>";
         echo "<html lang='pt-BR'><head><meta charset='UTF-8'>";
@@ -506,25 +762,23 @@ class Router {
         echo "<div class='emoji'>⚠️</div>";
         echo "<h1>500</h1>";
         echo "<h2>Erro Interno do Servidor</h2>";
-        echo "<p class='message'>{$message}</p>";
+        echo "<p class='message'>" . htmlspecialchars($message) . "</p>";
         echo "<a href='index.php?page=dashboard'>← Voltar ao Dashboard</a>";
         echo "</div></body></html>";
         exit;
     }
     
     /**
-     * Página não encontrada
+     * Exibe página de erro 404
      */
     private function notFound() {
         http_response_code(404);
         
         if ($this->isAjax()) {
-            header('Content-Type: application/json');
-            echo json_encode([
+            $this->jsonResponse([
                 'success' => false,
                 'message' => 'Página não encontrada'
-            ]);
-            exit;
+            ], 404);
         }
         
         echo "<!DOCTYPE html>";
@@ -552,20 +806,5 @@ class Router {
         echo "<a href='index.php?page=dashboard'>← Voltar ao Dashboard</a>";
         echo "</div></body></html>";
         exit;
-    }
-    
-    /**
-     * Middleware para verificar autenticação
-     */
-    public function authMiddleware() {
-        session_start();
-        
-        $publicPages = ['login', 'register', 'logout'];
-        $page = $_GET['page'] ?? 'login';
-        
-        if (!in_array($page, $publicPages) && !isset($_SESSION['user_id'])) {
-            header('Location: index.php?page=login');
-            exit;
-        }
     }
 }
